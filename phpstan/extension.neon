@@ -1,0 +1,29 @@
+services:
+    -
+        class: TMSWP\Core\PHPStan\KernelResetCallChecker
+    -
+        class: TMSWP\Core\PHPStan\MetaSchemaReflector
+    -
+        class: TMSWP\Core\PHPStan\MetaBagGetterReturnTypeExtension
+        tags:
+            - phpstan.broker.dynamicMethodReturnTypeExtension
+    -
+        class: TMSWP\Core\PHPStan\OptionGroupGetterReturnTypeExtension
+        tags:
+            - phpstan.broker.dynamicMethodReturnTypeExtension
+    -
+        class: TMSWP\Core\PHPStan\ModelRowTypeResolver
+    -
+        class: TMSWP\Core\PHPStan\QueryBuilderRowReturnTypeExtension
+        tags:
+            - phpstan.broker.dynamicMethodReturnTypeExtension
+    -
+        class: TMSWP\Core\PHPStan\ModelFindReturnTypeExtension
+        tags:
+            - phpstan.broker.dynamicStaticMethodReturnTypeExtension
+
+rules:
+    - TMSWP\Core\PHPStan\KernelResetMethodCallableOutsideTestRule
+    - TMSWP\Core\PHPStan\KernelResetOutsideTestRule
+    - TMSWP\Core\PHPStan\KernelResetStaticCallableOutsideTestRule
+    - TMSWP\Core\PHPStan\MetaKeyOwnershipRule

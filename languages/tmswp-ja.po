@@ -1,0 +1,189 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: tmswp-core\n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-10-19T10:35:54+00:00\n"
+"PO-Revision-Date: 2026-10-19T10:35:54+00:00\n"
+"Language: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Domain: tmswp\n"
+
+#: Form/FieldView.php:288
+msgid ", "
+msgstr "、"
+
+#: Form/Composite/CompositeField.php:38
+msgid "Please complete all parts of {label}."
+msgstr "{label}をすべて入力してください。"
+
+#: Form/Composite/CompositeField.php:49
+#: Form/Rule/Callback.php:37
+msgid "{label} is invalid."
+msgstr "{label}の入力値が不正です。"
+
+#: Form/Form.php:93
+#: Form/Form.php:359
+msgid "Your session has expired. Please submit the form again."
+msgstr "セッションの有効期限が切れました。お手数ですが再度送信してください。"
+
+#: Form/Form.php:313
+#: Form/Form.php:558
+msgid "The form could not be resubmitted. Please start again."
+msgstr "フォームの再送信に失敗しました。お手数ですが最初から入力してください。"
+
+#: Form/Form.php:322
+#: Form/Form.php:328
+#: Form/Form.php:457
+msgid "The confirmation screen has expired. Please review your entries and continue again."
+msgstr "確認画面の有効期限が切れました。内容を確認のうえ再度お進みください。"
+
+#: Form/Form.php:431
+msgid "This form has already been submitted."
+msgstr "このフォームは既に送信されています。"
+
+#: Form/UploadedFile.php:79
+msgid "The uploaded file is too large."
+msgstr "アップロードされたファイルが大きすぎます。"
+
+#: Form/UploadedFile.php:80
+msgid "The file was only partially uploaded."
+msgstr "ファイルが一部しかアップロードされませんでした。"
+
+#: Form/UploadedFile.php:81
+msgid "Please select a file."
+msgstr "ファイルを選択してください。"
+
+#: Form/UploadedFile.php:82
+msgid "The temporary upload folder is missing."
+msgstr "一時フォルダが見つかりません。"
+
+#: Form/UploadedFile.php:83
+msgid "The file could not be written."
+msgstr "ファイルを書き込めませんでした。"
+
+#: Form/UploadedFile.php:84
+msgid "A PHP extension stopped the file upload."
+msgstr "拡張機能によりアップロードが停止されました。"
+
+#: Form/Form.php:661
+#: Form/UploadedFile.php:85
+msgid "The file upload failed."
+msgstr "ファイルのアップロードに失敗しました。"
+
+#: Form/Rule/Required.php:29
+#: Form/Rule/RequiredIf.php:66
+msgid "{label} is required."
+msgstr "{label}を入力してください。"
+
+#: Form/Rule/Email.php:21
+msgid "Please enter a valid email address for {label}."
+msgstr "{label}はメールアドレスの形式で入力してください。"
+
+#: Form/Rule/MaxLength.php:31
+msgid "{label} must be {length} characters or fewer."
+msgstr "{label}は{length}文字以内で入力してください。"
+
+#: Form/Rule/MinLength.php:31
+msgid "{label} must be at least {length} characters."
+msgstr "{label}は{length}文字以上で入力してください。"
+
+#: Form/Rule/Regex.php:50
+msgid "{label} has an invalid format."
+msgstr "{label}の形式が正しくありません。"
+
+#: Form/Rule/Range.php:40
+msgid "{label} must be between {min} and {max}."
+msgstr "{label}は{min}から{max}の間で入力してください。"
+
+#: Form/Rule/Choice.php:37
+msgid "{label} has an invalid choice."
+msgstr "{label}の選択値が不正です。"
+
+#: Form/Rule/Retype.php:39
+msgid "{label} must match {otherLabel}."
+msgstr "{label}が{otherLabel}と一致しません。"
+
+#: Form/Rule/FileExtension.php:57
+msgid "Please upload {label} as one of these file types: {extensions}."
+msgstr "{label}は{extensions}形式のファイルを指定してください。"
+
+#: Form/Rule/MaxFileSize.php:44
+msgid "{label} must be {size} or smaller."
+msgstr "{label}のファイルサイズは{size}以下にしてください。"
+
+#: Form/Rule/Url.php:58
+msgid "Please enter a valid URL for {label}."
+msgstr "{label}はURLの形式で入力してください。"
+
+#: Form/Form.php:513
+msgid "The form could not be sent. Please try again."
+msgstr "送信に失敗しました。お手数ですが再度送信してください。"
+
+#: Form/Form.php:575
+msgid "Your submission could not be verified. Please try again."
+msgstr "送信内容を確認できませんでした。お手数ですが再度送信してください。"
+
+#: Form/Form.php:746
+msgid "{label} contains characters that cannot be used."
+msgstr "{label}に使用できない文字が含まれています。"
+
+#. translators: 1: comma-separated database table names, 2: WP-CLI command
+#: Model/Migrator.php:205
+#, php-format
+msgid "The database tables %1$s do not match their TMSWP table definitions. Run %2$s to apply the definitions."
+msgstr "データベースのテーブル%1$sがTMSWPのテーブル定義と一致しません。%2$sを実行して定義を適用してください。"
+
+#. translators: %s: command synopsis
+#: Model/MigrateCommand.php:71
+#, php-format
+msgid "Usage: %s"
+msgstr "使い方: %s"
+
+#. translators: %s: command-line flag such as force
+#: Model/MigrateCommand.php:79
+#, php-format
+msgid "--%s does not take a value"
+msgstr "--%sは値を取りません"
+
+#: Model/MigrateCommand.php:87
+msgid "--force and --dry-run cannot be used together"
+msgstr "--forceと--dry-runは同時に指定できません"
+
+#: Model/MigrateCommand.php:101
+msgid "No models registered."
+msgstr "登録されたModelがありません。"
+
+#. translators: %s: database table name
+#: Model/MigrateCommand.php:116
+#, php-format
+msgid "%s: up-to-date"
+msgstr "%s: 最新"
+
+#. translators: %s: database table name
+#: Model/MigrateCommand.php:118
+#, php-format
+msgid "%s: changed"
+msgstr "%s: 変更あり"
+
+#. translators: %s: database table name
+#: Model/MigrateCommand.php:132
+#, php-format
+msgid "Migrated: %s"
+msgstr "適用しました: %s"
+
+#. translators: %s: database table name
+#: Model/MigrateCommand.php:136
+#, php-format
+msgid "Skipped: %s (up to date)"
+msgstr "スキップしました: %s(最新)"
+
+#. translators: 1: number of migrated tables, 2: number of skipped tables
+#: Model/MigrateCommand.php:146
+#, php-format
+msgid "%1$d table(s) migrated, %2$d skipped."
+msgstr "%1$d件のテーブルを適用し、%2$d件をスキップしました。"
