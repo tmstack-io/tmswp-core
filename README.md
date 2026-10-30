@@ -11,6 +11,7 @@ TMStack WordPress Framework(TMSWP)のコアパッケージです。テーマ・�
 
 - PHP 8.3〜8.5
 - WordPress 7.0以上。クラシックテーマ(PHPのテンプレート階層)とプラグインが対象で、ブロックテーマ(フルサイト編集)とマルチサイトは対象外です。
+- MySQL 8.4 LTS以上、またはMariaDB 10.11 LTS以上。独自テーブル(Model)の行ロックの句の`SKIP LOCKED`・`NOWAIT`はMySQL 8.0以上・MariaDB 10.6以上で使え、そのうちサポート(MariaDBはコミュニティのサポート)が続いているLTSで、統合テストを走らせている版を下限にしています。SQLはDBの種類で分けず、どちらのDBでも同じ文を出します。
 - 任意: `ext-mbstring`(`TMSWP\Core\Support\Str`のマルチバイト文字列の処理)、`ext-intl`(フォームの規則`Url`の国際化ドメイン名の検証)
 
 ## 導入
@@ -107,7 +108,7 @@ Kernel::boot(KernelConfig::load(__DIR__ . '/tmswp-kernel.php'));
 | `rules/rest.md` | REST APIのルート(WordPress標準の`register_rest_route()`) |
 | `rules/deploy.md` | 本番へのデプロイ(FTP) |
 
-各APIの設計と仕様は、TMSWPのmonorepo([tmstack-io/tmswp](https://github.com/tmstack-io/tmswp))の[docs/](https://github.com/tmstack-io/tmswp/tree/v0.9.1/docs/)にあります(Kernel・探索は[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/02-kernel.md)、エンティティは[docs/03-entities.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/03-entities.md)、メタ・オプションは[docs/04-meta-options.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/04-meta-options.md)、フォームは[docs/05-form.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/05-form.md)、Modelは[docs/06-model.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/06-model.md)、テンプレート・ログ等は[docs/07-support.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/07-support.md))。
+各APIの設計と仕様は、TMSWPのmonorepo([tmstack-io/tmswp](https://github.com/tmstack-io/tmswp))の[docs/](https://github.com/tmstack-io/tmswp/tree/v0.10.0/docs/)にあります(Kernel・探索は[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/02-kernel.md)、エンティティは[docs/03-entities.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/03-entities.md)、メタ・オプションは[docs/04-meta-options.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/04-meta-options.md)、フォームは[docs/05-form.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/05-form.md)、Modelは[docs/06-model.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/06-model.md)、テンプレート・ログ等は[docs/07-support.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/07-support.md))。
 
 ## WP-CLIコマンド
 

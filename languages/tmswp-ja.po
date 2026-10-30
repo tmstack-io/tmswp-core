@@ -133,7 +133,7 @@ msgid "{label} contains characters that cannot be used."
 msgstr "{label}に使用できない文字が含まれています。"
 
 #. translators: 1: comma-separated database table names, 2: WP-CLI command
-#: Model/Migrator.php:205
+#: Model/Migrator.php:206
 #, php-format
 msgid "The database tables %1$s do not match their TMSWP table definitions. Run %2$s to apply the definitions."
 msgstr "データベースのテーブル%1$sがTMSWPのテーブル定義と一致しません。%2$sを実行して定義を適用してください。"

@@ -71,7 +71,8 @@ abstract class Model
      */
     final public static function query(): QueryBuilder
     {
-        $query = new QueryBuilder(static::connection(), static::bareTableName());
+        // 定義を渡し、update() に生成カラムへの代入を拒否させる
+        $query = new QueryBuilder(static::connection(), static::bareTableName(), null, self::definition());
         $rowClass = static::rowClass();
 
         return $rowClass === null ? $query : $query->as($rowClass);
@@ -87,9 +88,12 @@ abstract class Model
      * INSERT。戻り値は insert_id。$data が空なら 'INSERT INTO {t} () VALUES ()' を発行する(AUTO_INCREMENT の採番のみ)。
      *
      * @param array<string, mixed> $data
+     *
+     * @throws InvalidQueryException $data に生成カラムのキーがある場合
      */
     final public static function insert(array $data): int
     {
+        self::assertNoGeneratedColumn($data, 'insert()');
         $connection = static::connection();
 
         if ($data === []) {
@@ -102,12 +106,29 @@ abstract class Model
     }
 
     /**
+     * このテーブルへの upsert(INSERT … ON DUPLICATE KEY UPDATE。Connection::upsert())。戻り値は影響行数(1=挿入、2=更新、
+     * 0=変化なし)。insert_id は connection()->insertId() で読む(更新なら更新した行の ID)。
+     *
+     * @param array<string, mixed> $values 挿入する列 => 値
+     * @param non-empty-array<string, UpsertUpdate> $update 重複のときに更新する列。キーは $values にある列に限る
+     *
+     * @throws InvalidQueryException $values に生成カラムのキーがある場合と、Connection::upsert() が拒否する引数の場合
+     */
+    final public static function upsert(array $values, array $update): int
+    {
+        self::assertNoGeneratedColumn($values, 'upsert()');
+
+        return static::connection()->upsert(static::bareTableName(), $values, $update);
+    }
+
+    /**
      * UPDATE。$where が int なら主キーの等値条件、配列なら等値条件のマップ(null は IS NULL)。戻り値は影響行数。
      *
      * @param array<string, mixed> $data
      * @param array<string, mixed>|int $where
      *
-     * @throws InvalidQueryException $where が空の配列・整数のキーを含む・配列の値を含む場合
+     * @throws InvalidQueryException $where が空の配列・整数のキーを含む・配列の値を含む場合と、$data に生成カラムのキーが
+     *                               ある場合(query() のビルダの update() が拒否する)。$where の生成カラムは条件なので拒否しない
      */
     final public static function update(array $data, array|int $where): int
     {
@@ -189,6 +210,23 @@ abstract class Model
     private static function definition(): TableDefinition
     {
         return self::$definitionCache[static::class] ??= static::table();
+    }
+
+    /**
+     * $data のキーに生成カラムがあれば InvalidQueryException を投げる。DB の違い(MySQL はエラー、MariaDB は値を黙って
+     * 捨てる)をなくすため、生成カラムへの書き込みは DB に送る前に拒否する。列名は大小文字を区別しないため、そろえて比べる。
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function assertNoGeneratedColumn(array $data, string $method): void
+    {
+        $keys = array_change_key_case($data);
+
+        foreach (self::definition()->generatedColumns() as $column) {
+            if (\array_key_exists(strtolower($column), $keys)) {
+                throw new InvalidQueryException("{$method} cannot write to the generated column {$column}; the database computes its value");
+            }
+        }
     }
 
     /**

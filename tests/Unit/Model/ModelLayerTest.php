@@ -28,6 +28,7 @@ use TMSWP\Core\Model\Model;
 use TMSWP\Core\Model\ModelInitializer;
 use TMSWP\Core\Model\QueryBuilder;
 use TMSWP\Core\Model\TableDefinition;
+use TMSWP\Core\Model\UpsertUpdate;
 use TMSWP\Testing\UnitTestCase;
 use TMSWP\Testing\WpdbTestDouble;
 
@@ -255,6 +256,10 @@ SQL, $definition->toSql($connection));
             static fn(Connection $connection): int => $connection->delete('contacts', ['id' => 10]),
             'delete failed: wp_contacts',
         ];
+        yield 'upsert' => [
+            static fn(Connection $connection): int => $connection->upsert('contacts', ['email' => 'a@example.test', 'visits' => 1], ['visits' => UpsertUpdate::Increment]),
+            "query failed: INSERT INTO wp_contacts (email, visits) VALUES ('a@example.test', 1) ON DUPLICATE KEY UPDATE visits = visits + 1",
+        ];
     }
 
     public function testConnectionReportsWpdbLastErrorAndRecoversOnNextWrite(): void
@@ -345,6 +350,7 @@ SQL, $definition->toSql($connection));
         self::assertSame([], $wpdb->insertCalls());
         self::assertSame([], $wpdb->updateCalls());
         self::assertSame([], $wpdb->deleteCalls());
+        self::assertSame([], $wpdb->queries());
     }
 
     /**
@@ -355,6 +361,7 @@ SQL, $definition->toSql($connection));
         yield 'insert' => [static fn(Connection $connection): int => $connection->insert('Wp_contacts', ['email' => 'a@example.test'])];
         yield 'update' => [static fn(Connection $connection): int => $connection->update('Wp_contacts', ['email' => 'a@example.test'], ['id' => 10])];
         yield 'delete' => [static fn(Connection $connection): int => $connection->delete('Wp_contacts', ['id' => 10])];
+        yield 'upsert' => [static fn(Connection $connection): int => $connection->upsert('Wp_contacts', ['email' => 'a@example.test'], ['email' => UpsertUpdate::Replace])];
     }
 
     public function testConnectionPrepareTurnsEscapedPercentIntoLiteralWithoutBindings(): void
@@ -761,6 +768,7 @@ SQL, $definition->toSql($connection));
         yield 'query' => ['query', []];
         yield 'find' => ['find', ['int $id']];
         yield 'insert' => ['insert', ['array $data']];
+        yield 'upsert' => ['upsert', ['array $values', 'array $update']];
         yield 'update' => ['update', ['array $data', 'array|int $where']];
         yield 'delete' => ['delete', ['array|int $where']];
         yield 'count' => ['count', ['array $where = []']];
@@ -797,7 +805,7 @@ SQL, $definition->toSql($connection));
         sort($methods);
 
         self::assertSame(
-            ['__construct', 'bareTableName', 'connection', 'count', 'delete', 'find', 'insert', 'primaryKey', 'query', 'rowClass', 'table', 'tableName', 'update', 'useConnection'],
+            ['__construct', 'bareTableName', 'connection', 'count', 'delete', 'find', 'insert', 'primaryKey', 'query', 'rowClass', 'table', 'tableName', 'update', 'upsert', 'useConnection'],
             $methods,
         );
     }

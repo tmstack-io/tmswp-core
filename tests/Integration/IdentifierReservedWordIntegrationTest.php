@@ -14,7 +14,8 @@ use TMSWP\Testing\IntegrationTestCase;
  * キーワードのすべての語について、クォートしないカラム名でのテーブルの作成を実物のDBで試し、作成に失敗する語がすべて
  * TableDefinitionの宣言の時点で拒否されることを確かめる。DBの版が上がって予約語が増えたときに、ここで気づく。
  * MariaDBのKEYWORDSにはRESERVEDの列が無く、MySQLのRESERVED = 1の語にもカラム名に使える語があるため、RESERVEDで
- * 絞らずに全語を試す。CIでは、wp-envのMariaDBと、MySQL 8.4 LTS・9.7 LTSのジョブで走る(10-quality §5.1)。
+ * 絞らずに全語を試す。CIでは、wp-envのMariaDBと、MySQL 8.4 LTS・9.7 LTS・MariaDB 10.11 LTSのジョブで走る
+ * (10-quality §5.1)。
  */
 final class IdentifierReservedWordIntegrationTest extends IntegrationTestCase
 {

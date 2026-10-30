@@ -295,4 +295,4 @@ final class ThumbnailFallbackHook extends Hook
 - 投稿タイプにメタ(カスタムフィールド)を持たせる: rules/meta.md。ACFの画面で編集する場合: rules/acf.md
 - 投稿タイプごとに使えるブロックを限る(`allowedBlocks()`): rules/blocks.md
 - テンプレートで使う値を前処理クラスで用意する: rules/page.md
-- 投稿タイプの定義・クエリの仕様: TMSWPの設計文書[docs/03-entities.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/03-entities.md)
+- 投稿タイプの定義・クエリの仕様: TMSWPの設計文書[docs/03-entities.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/03-entities.md)

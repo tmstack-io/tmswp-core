@@ -20,7 +20,7 @@ use TMSWP\Testing\IntegrationTestCase;
  * Migratorは適用のたびに、dbDeltaのエラー(検証1)、dry-runの残った差分(検証2)、実際の構造と定義の照合(検証3)を
  * 確かめ、食い違えばMigrationExceptionを投げる。初回の作成と、force: trueでの再適用の両方がMigratedで終わることを
  * 確かめ、さらに再適用の後のdry-runが空であることを直接確かめる。CIでは、wp-envのMariaDBと、MySQL 8.4 LTS・
- * 9.7 LTSのジョブで走る(10-quality §5.1)。
+ * 9.7 LTS・MariaDB 10.11 LTSのジョブで走る(10-quality §5.1)。
  */
 final class MigratorColumnTypeIntegrationTest extends IntegrationTestCase
 {

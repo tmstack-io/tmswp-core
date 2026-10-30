@@ -349,4 +349,4 @@ final class ProductPriceTest extends UnitTestCase
 - サイト全体の設定値: rules/options.md
 - メタを持たせる投稿タイプ・タクソノミー・ロール: rules/post-type.md・rules/taxonomy.md・rules/user-role.md
 - テストの書き方の全体(PHPUnitの設定・Brain Monkey): vendor/tmswp/testing/rules/testing.md
-- `#[MetaSchema]`・`MetaBag`・ストレージの仕様: TMSWPの設計文書[docs/04-meta-options.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/04-meta-options.md)
+- `#[MetaSchema]`・`MetaBag`・ストレージの仕様: TMSWPの設計文書[docs/04-meta-options.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/04-meta-options.md)

@@ -86,8 +86,8 @@ final class MigrateCommandTest extends UnitTestCase
         // 適用後の構造の確認(SHOW TABLES・SHOW FULL COLUMNS・SHOW INDEX)の結果
         $this->wpdb->queueVar('wp_tmswp_notes');
         $this->wpdb->queueResultSet([
-            ['Field' => 'id', 'Null' => 'NO', 'Default' => null],
-            ['Field' => 'note', 'Null' => 'NO', 'Default' => null],
+            ['Field' => 'id', 'Null' => 'NO', 'Default' => null, 'Extra' => 'auto_increment'],
+            ['Field' => 'note', 'Null' => 'NO', 'Default' => null, 'Extra' => ''],
         ]);
         $this->wpdb->queueResultSet([['Key_name' => 'PRIMARY', 'Column_name' => 'id', 'Seq_in_index' => '1']]);
 

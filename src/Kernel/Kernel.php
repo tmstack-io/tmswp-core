@@ -36,7 +36,7 @@ final class Kernel
      * (InstalledVersionCheck)。版の最初のタスクで、その版(タグの版から先頭のvを除いたもの)に手で上げる。リリースの道具は
      * 書き換えず、リリースの前の検査がタグの版との一致を確かめる。
      */
-    public const string VERSION = '0.9.1';
+    public const string VERSION = '0.10.0';
 
     /** 対応する WordPress の下限の版 */
     private const string MIN_WORDPRESS_VERSION = '7.0';

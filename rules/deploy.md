@@ -21,7 +21,7 @@ TMSWPを使うテーマ・プラグインを、FTPで本番のサーバーへ上
 ## 版をそろえる
 
 - 同じサイトでTMSWPを使うテーマ・プラグインは、すべて同じ版の`tmswp/core`を`vendor/`に入れる。PHPのクラスは先に読み込まれた1組だけが使われるため、Kernelは起動のたびに、読み込まれたすべての`vendor/composer/installed.php`の`tmswp/core`の版を、動いている`tmswp/core`の版と比べる。1つでも違えば、`KernelException`(`tmswp/core versions on this site do not match the loaded core ...`)で止まる。
-- 比べるのは版の全体(`0.9.1`等)である。composer.jsonの制約(`^0.9.1`)を両方が満たしていても、`0.9.1`と`0.9.2`では止まる。tmswp/core以外の`tmswp/*`(拡張)はtmswp/coreと同じ版で出るため、`composer update 'tmswp/*'`で一緒に上げる。
+- 比べるのは版の全体(`0.10.0`等)である。composer.jsonの制約(`^0.10`)を両方が満たしていても、`0.10.0`と`0.10.1`では止まる。tmswp/core以外の`tmswp/*`(拡張)はtmswp/coreと同じ版で出るため、`composer update 'tmswp/*'`で一緒に上げる。
 - Kernelが比べるのは`tmswp/core`の版だけで、拡張(tmswp/acf-bridge等)の版の食い違いは検出しない。拡張の版も、下の`composer show 'tmswp/*'`で確かめる。
 - 止まると、サイトのすべてのページ(管理画面とRESTを含む)が500の致命的なエラーの画面になり、そのサイトでは`wp`のコマンドも同じ例外で止まる。直すには、版をそろえた`vendor/`を上げ直す。
 - 開発環境の版は、テーマ・プラグインのそれぞれで`composer show 'tmswp/*'`を実行し、入っているすべての`tmswp/*`の版が同じであることを確かめる。スターターから作ったプロジェクトは`composer.lock`をコミットしない(`.gitignore`)ため、別のパソコンで`composer install`すると、制約の範囲の別の版が入ることがある。上げる前に毎回確かめる。
@@ -112,4 +112,4 @@ TMSWPを使うテーマ・プラグインを、FTPで本番のサーバーへ上
 - マイグレーションの実行と失敗したときの直し方: rules/model.md
 - ブロックのビルドと探索コマンドの連結: rules/blocks.md
 - acf-jsonと生成物を同じコミットにする: rules/acf.md
-- 版の照合と探索結果ファイルの仕様: TMSWPの設計文書[docs/01-architecture.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/01-architecture.md)・[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/02-kernel.md)
+- 版の照合と探索結果ファイルの仕様: TMSWPの設計文書[docs/01-architecture.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/01-architecture.md)・[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/02-kernel.md)

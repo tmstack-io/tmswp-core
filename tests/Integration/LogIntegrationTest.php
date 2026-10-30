@@ -127,11 +127,17 @@ final class LogIntegrationTest extends IntegrationTestCase
     /**
      * docs/07-support.mdの「タイムスタンプと`{date}`が`wp_date()`由来である」のうち、ファイル名の`{date}`を確かめる。
      * Asia/TokyoではUTCと日付が同じ時間帯があるため、今のUTCの日付と日付が異なるタイムゾーン(UTC+14かUTC-11)を選ぶ。
+     *
+     * UTC+14(Pacific/Kiritimati)はUTCの10時から、UTC-11(Pacific/Pago_Pago)はUTCの11時から、UTCと日付が同じになる。
+     * 以前はUTCの12時を境にしていたため、UTCの11時台にPago_Pagoを選び、日付が同じになって前提の確認で失敗した。
+     * UTCの10時を境にすると、選んだタイムゾーンの時刻は、Kiritimatiなら翌日の0時〜13時台、Pago_Pagoなら前日の13時〜
+     * 22時台になる。どちらもUTCと日付が違い、テストの間(1時間未満)にそのタイムゾーンの日付が変わらないため、実行した
+     * 時刻によらず決まる。
      */
     public function testFileNameDateFollowsSiteTimezoneWhoseDateDiffersFromUtc(): void
     {
         $start = time();
-        $timezone = (int) gmdate('G', $start) >= 12 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago';
+        $timezone = (int) gmdate('G', $start) >= 10 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago';
         $siteDate = (new DateTimeImmutable('@' . $start))->setTimezone(new DateTimeZone($timezone))->format('Ymd');
         self::assertNotSame(gmdate('Ymd', $start), $siteDate, 'the chosen timezone must have a date different from UTC');
         add_filter('pre_option_timezone_string', static fn(): string => $timezone);

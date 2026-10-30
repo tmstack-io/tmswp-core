@@ -159,4 +159,4 @@ final class CategoryTax extends Taxonomy
 - 紐付け先の投稿タイプを作る: rules/post-type.md
 - タームにメタを持たせる: rules/meta.md
 - タームの一覧をテンプレートの前処理クラスで用意する: rules/page.md
-- タクソノミーの定義・クエリの仕様: TMSWPの設計文書[docs/03-entities.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/03-entities.md)
+- タクソノミーの定義・クエリの仕様: TMSWPの設計文書[docs/03-entities.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/03-entities.md)

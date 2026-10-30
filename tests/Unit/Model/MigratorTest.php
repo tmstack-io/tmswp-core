@@ -231,6 +231,14 @@ final class MigratorTest extends UnitTestCase
         yield '日時: 精度を保って同じ' => [$table()->rawColumn('val', 'timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)'), 'current_timestamp(6)', true];
         yield '日時: 精度の違いは別' => [$table()->rawColumn('val', 'timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)'), 'current_timestamp()', false];
         yield '日時: 精度 0 は精度なしと同じ' => [$table()->rawColumn('val', 'timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP(0)'), 'current_timestamp()', true];
+        yield '日時: NOW() と current_timestamp() は同じ' => [$table()->rawColumn('val', 'datetime NOT NULL DEFAULT NOW()'), 'current_timestamp()', true];
+        yield '日時: LOCALTIMESTAMP と CURRENT_TIMESTAMP は同じ' => [$table()->rawColumn('val', 'datetime NOT NULL DEFAULT LOCALTIMESTAMP'), 'CURRENT_TIMESTAMP', true];
+        yield '日時: NOW(6) と current_timestamp(6) は同じ' => [$table()->rawColumn('val', 'datetime(6) NOT NULL DEFAULT NOW(6)'), 'current_timestamp(6)', true];
+        yield '日時: LOCALTIMESTAMP と MariaDB 12.3 の localtimestamp() は同じ' => [$table()->rawColumn('val', 'datetime NOT NULL DEFAULT LOCALTIMESTAMP'), 'localtimestamp()', true];
+        yield '日時: LOCALTIME と MariaDB 12.3 の curtime() は別' => [$table()->rawColumn('val', 'datetime NOT NULL DEFAULT LOCALTIME'), 'curtime()', false];
+        yield '日時: 括弧の無い now と current_timestamp() は別' => [$table()->rawColumn('val', 'datetime NOT NULL DEFAULT now'), 'current_timestamp()', false];
+        yield '日時: nowx と current_timestamp() は別' => [$table()->rawColumn('val', 'datetime NOT NULL DEFAULT nowx'), 'current_timestamp()', false];
+        yield '日時: NOW(6) と current_timestamp() は別' => [$table()->rawColumn('val', 'datetime(6) NOT NULL DEFAULT NOW(6)'), 'current_timestamp()', false];
         yield '日時: 日時の値はそのまま' => [$table()->datetime('val', default: '2026-01-01 00:00:00'), '2026-01-01 00:00:00', true];
     }
 
@@ -253,8 +261,8 @@ final class MigratorTest extends UnitTestCase
         Functions\expect('update_option')->times($same ? 1 : 0)->andReturn(true);
         $wpdb->queueVar('wp_tmswp_defaults');
         $wpdb->queueResultSet([
-            ['Field' => 'id', 'Null' => 'NO', 'Default' => null],
-            ['Field' => 'val', 'Null' => $definition->columnNullable('val') ? 'YES' : 'NO', 'Default' => $actual],
+            ['Field' => 'id', 'Null' => 'NO', 'Default' => null, 'Extra' => 'auto_increment'],
+            ['Field' => 'val', 'Null' => $definition->columnNullable('val') ? 'YES' : 'NO', 'Default' => $actual, 'Extra' => ''],
         ]);
         $wpdb->queueResultSet([['Key_name' => 'PRIMARY', 'Column_name' => 'id', 'Seq_in_index' => '1']]);
 

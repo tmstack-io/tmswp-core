@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace TMSWP\Core\Tests\Integration;
 
 use RuntimeException;
+use TMSWP\Core\Model\Model;
+use TMSWP\Core\Tests\Support\AccountsBaseModel;
+use TMSWP\Core\Tests\Support\AccountsChangedExpressionModel;
+use TMSWP\Core\Tests\Support\AccountsModel;
 use TMSWP\Testing\IntegrationTestCase;
 use TMSWP\Testing\WpCliPharDeprecations;
 
@@ -19,6 +23,7 @@ use TMSWP\Testing\WpCliPharDeprecations;
  *
  * サブプロセスは統合テストのテーブル(wptests_)ではなく、開発用サイトのテーブル(wp_)を使う。開始の時点で
  * 2つのテーブルと`tmswp_schema_hashes`のoptionが無いことを確かめ、テストの後に両方を消して、その状態に戻す。
+ * 生成カラムのテストがサブプロセスでプラグインのKernelに足すModelのテーブル(`tmswp_it_accounts`)も同じく扱う。
  */
 final class MigrateCommandIntegrationTest extends IntegrationTestCase
 {
@@ -47,7 +52,7 @@ final class MigrateCommandIntegrationTest extends IntegrationTestCase
                 $this->cleanState = false;
                 $result = self::wp(['eval', <<<'PHP'
                     global $wpdb;
-                    foreach (['tmswp_fixture_spied', 'tmswp_fixture_contacts'] as $table) {
+                    foreach (['tmswp_fixture_spied', 'tmswp_fixture_contacts', 'tmswp_it_accounts'] as $table) {
                         $wpdb->query('DROP TABLE IF EXISTS `' . $wpdb->prefix . $table . '`');
                     }
                     delete_option('tmswp_schema_hashes');
@@ -226,6 +231,114 @@ final class MigrateCommandIntegrationTest extends IntegrationTestCase
     }
 
     /**
+     * 生成カラムを持つ要望の定義のテーブルを、`wp tmswp migrate`のコマンドとして適用する(Model層の設計書の「生成カラムと
+     * ON UPDATEの適用と照合」)。対象のModelは、サブプロセスでプラグインのKernelのMigratorに足す。生成カラムの無い定義で
+     * 作ったテーブルに、要望の定義の生成カラムを足すと`--dry-run`が`changed`を出し、適用で列と索引が足されて、次の
+     * `--dry-run`が`up-to-date`になる。式を変えると、もう一度`changed`になり、適用でDBの式が変わる。
+     */
+    public function testGeneratedColumnsAreReportedAndAppliedByTheCommand(): void
+    {
+        $base = self::wp(['tmswp', 'migrate'], model: AccountsBaseModel::class);
+
+        self::assertSame(0, $base['code'], $base['stdout'] . $base['stderr']);
+        self::assertSame(
+            "Migrated: tmswp_fixture_spied\nMigrated: tmswp_it_accounts\nMigrated: tmswp_fixture_contacts\nSuccess: 3 table(s) migrated, 0 skipped.\n",
+            $base['stdout'],
+        );
+        self::assertSame([], self::accountsGeneratedColumns());
+
+        foreach ([AccountsModel::class => "'expired','deleted')", AccountsChangedExpressionModel::class => "'expired','deleted','suspended')"] as $model => $inactiveStatuses) {
+            $changed = self::wp(['tmswp', 'migrate', '--dry-run'], model: $model);
+
+            self::assertSame(0, $changed['code'], $changed['stdout'] . $changed['stderr']);
+            self::assertSame("tmswp_fixture_spied: up-to-date\ntmswp_it_accounts: changed\ntmswp_fixture_contacts: up-to-date\n", $changed['stdout'], $model);
+
+            $migrate = self::wp(['tmswp', 'migrate'], model: $model);
+
+            self::assertSame(0, $migrate['code'], $migrate['stdout'] . $migrate['stderr']);
+            self::assertSame(
+                "Skipped: tmswp_fixture_spied (up to date)\nMigrated: tmswp_it_accounts\nSkipped: tmswp_fixture_contacts (up to date)\nSuccess: 1 table(s) migrated, 2 skipped.\n",
+                $migrate['stdout'],
+                $model,
+            );
+
+            $upToDate = self::wp(['tmswp', 'migrate', '--dry-run'], model: $model);
+
+            self::assertSame(0, $upToDate['code'], $upToDate['stdout'] . $upToDate['stderr']);
+            self::assertSame("tmswp_fixture_spied: up-to-date\ntmswp_it_accounts: up-to-date\ntmswp_fixture_contacts: up-to-date\n", $upToDate['stdout'], $model);
+
+            $columns = self::accountsGeneratedColumns();
+            self::assertSame(['corp_admin_active_key', 'site_role_active_key'], array_keys($columns), $model);
+            self::assertSame(['STORED GENERATED', 'VIRTUAL GENERATED'], array_column($columns, 'extra'), $model);
+
+            // DBは式を正規化して保存する(MariaDBとMySQLで表記が違う)ため、状態の並びの部分だけを照らし合わせる
+            foreach ($columns as $column => $attributes) {
+                self::assertStringContainsString($inactiveStatuses, str_replace(['_utf8mb4', '\\', ' '], '', $attributes['expression']), $column);
+            }
+        }
+
+        self::assertSame(['uq_corp_admin', 'uq_site_role'], self::accountsUniqueIndexes());
+    }
+
+    /**
+     * 開発用サイトの`tmswp_it_accounts`の生成カラムの、Extraと式(information_schemaのGENERATION_EXPRESSION)。
+     *
+     * @return array<string, array{extra: string, expression: string}>
+     */
+    private static function accountsGeneratedColumns(): array
+    {
+        $result = self::wp(['eval', <<<'PHP'
+            global $wpdb;
+            $rows = $wpdb->get_results($wpdb->prepare(
+                "SELECT COLUMN_NAME AS name, EXTRA AS extra, GENERATION_EXPRESSION AS expression FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND EXTRA LIKE %s ORDER BY ORDINAL_POSITION",
+                $wpdb->prefix . 'tmswp_it_accounts',
+                '%' . $wpdb->esc_like(' GENERATED'),
+            ), ARRAY_A);
+            echo json_encode($rows, JSON_THROW_ON_ERROR);
+            PHP], fixtures: false);
+        self::assertSame(0, $result['code'], $result['stdout'] . $result['stderr']);
+        $rows = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($rows);
+        $columns = [];
+
+        foreach ($rows as $row) {
+            self::assertIsArray($row);
+            self::assertIsString($row['name'] ?? null);
+            self::assertIsString($row['extra'] ?? null);
+            self::assertIsString($row['expression'] ?? null);
+            $columns[$row['name']] = ['extra' => $row['extra'], 'expression' => $row['expression']];
+        }
+
+        return $columns;
+    }
+
+    /**
+     * 開発用サイトの`tmswp_it_accounts`のUNIQUEの索引の名前(主キーを除く)。
+     *
+     * @return list<string>
+     */
+    private static function accountsUniqueIndexes(): array
+    {
+        $result = self::wp(['eval', <<<'PHP'
+            global $wpdb;
+            $names = [];
+            foreach ($wpdb->get_results('SHOW INDEX FROM `' . $wpdb->prefix . 'tmswp_it_accounts`', ARRAY_A) as $row) {
+                if ($row['Non_unique'] === '0' && $row['Key_name'] !== 'PRIMARY') {
+                    $names[] = $row['Key_name'];
+                }
+            }
+            sort($names);
+            echo json_encode($names, JSON_THROW_ON_ERROR);
+            PHP], fixtures: false);
+        self::assertSame(0, $result['code'], $result['stdout'] . $result['stderr']);
+        $names = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($names);
+        self::assertTrue(array_is_list($names));
+
+        return array_map(static fn(mixed $name): string => \is_string($name) ? $name : self::fail('index name is not a string'), $names);
+    }
+
+    /**
      * 開発用サイトにあるfixtureのテーブル(接頭辞を除いた名前。作られた順ではなくTABLESの順)と、
      * `tmswp_schema_hashes`のoptionの値(無ければnull)。
      *
@@ -236,7 +349,7 @@ final class MigrateCommandIntegrationTest extends IntegrationTestCase
         $result = self::wp(['eval', <<<'PHP'
             global $wpdb;
             $tables = [];
-            foreach (['tmswp_fixture_spied', 'tmswp_fixture_contacts'] as $table) {
+            foreach (['tmswp_fixture_spied', 'tmswp_fixture_contacts', 'tmswp_it_accounts'] as $table) {
                 if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($wpdb->prefix . $table))) !== null) {
                     $tables[] = $table;
                 }
@@ -275,17 +388,22 @@ final class MigrateCommandIntegrationTest extends IntegrationTestCase
 
     /**
      * 開発用サイト(ABSPATH)に対してWP-CLIを実行する。$fixturesならfixtureのテーマとプラグインをそのプロセスの中だけ有効にする。
+     * $modelを渡すと、そのプロセスの中だけ、WordPressの読み込みの後(wp_loaded)にプラグインのKernelのMigratorへ登録する。
      *
      * @param list<string> $arguments
+     * @param class-string<Model>|null $model
      *
      * @return array{code: int, stdout: string, stderr: string, removedDeprecations: int}
      */
-    private static function wp(array $arguments, bool $fixtures = true): array
+    private static function wp(array $arguments, bool $fixtures = true, ?string $model = null): array
     {
         $root = \dirname(__DIR__, 4);
         $require = $fixtures ? ['--require=' . $root . '/tests/fixtures/_wp-cli.php'] : [];
+        $exec = $model === null ? [] : [
+            '--exec=WP_CLI::add_wp_hook("wp_loaded", static function (): void { \\TMSWP\\Core\\Kernel\\Kernel::get("' . self::PLUGIN_NAMESPACE . '")->container()->get(\\TMSWP\\Core\\Model\\Migrator::class)->register(\\' . $model . '::class); });',
+        ];
 
-        return self::runProcess(['wp', '--path=' . ABSPATH, ...$require, ...$arguments], $root);
+        return self::runProcess(['wp', '--path=' . ABSPATH, ...$require, ...$exec, ...$arguments], $root);
     }
 
     /**

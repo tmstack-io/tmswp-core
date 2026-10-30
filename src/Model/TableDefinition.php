@@ -63,7 +63,7 @@ final class TableDefinition
     /** 既定値を日時として比べる列の型(rawColumn() の型の名前で判定する) */
     private const array TEMPORAL_TYPES = ['date', 'datetime', 'timestamp', 'time', 'year'];
 
-    /** @var list<string> */
+    /** @var array<string, string> 列名 => toSql() の列の行(宣言順) */
     private array $columnLines = [];
 
     /** @var list<string> */
@@ -73,10 +73,11 @@ final class TableDefinition
     private array $columnTypes = [];
 
     /**
-     * 列の NULL の可否・既定値・既定値の種類。組込のメソッドは引数の値をそのまま持つ。既定値は DB が SHOW FULL COLUMNS で
-     * 返す形と比べられる値(文字列は引用符を外した値、bool は '0' / '1'、数値は10進の文字列)で、無ければ null。
+     * 列の NULL の可否・既定値・既定値の種類・ON UPDATE の値・生成カラムの保存の方式。組込のメソッドは引数の値をそのまま
+     * 持つ。既定値は DB が SHOW FULL COLUMNS で返す形と比べられる値(文字列は引用符を外した値、bool は '0' / '1'、数値は
+     * 10進の文字列)で、無ければ null。ON UPDATE が無い列と通常の列は、それぞれ null。
      *
-     * @var array<string, array{nullable: bool, default: string|null, kind: 'number'|'string'|'temporal'}>
+     * @var array<string, array{nullable: bool, default: string|null, kind: 'number'|'string'|'temporal', onUpdate: string|null, generation: GeneratedColumnStorage|null}>
      */
     private array $columnAttributes = [];
 
@@ -163,9 +164,19 @@ final class TableDefinition
         return $this->addColumn($name, 'tinyint(1) NOT NULL DEFAULT ' . $value, false, $value, 'number');
     }
 
-    public function datetime(string $name, bool $nullable = false, ?string $default = null): self
+    /**
+     * $default が 'CURRENT_TIMESTAMP' のときだけ引用符なしで出す。$onUpdateCurrentTimestamp が真なら、行の更新のときに DB が
+     * 現在の日時を入れる(ON UPDATE CURRENT_TIMESTAMP)。
+     */
+    public function datetime(string $name, bool $nullable = false, ?string $default = null, bool $onUpdateCurrentTimestamp = false): self
     {
-        return $this->addColumn($name, 'datetime' . $this->datetimeNullAndDefault($nullable, $default), $nullable, $default, 'temporal');
+        $definition = 'datetime' . $this->datetimeNullAndDefault($nullable, $default);
+
+        if ($onUpdateCurrentTimestamp) {
+            $definition .= ' ON UPDATE CURRENT_TIMESTAMP';
+        }
+
+        return $this->addColumn($name, $definition, $nullable, $default, 'temporal', $onUpdateCurrentTimestamp ? 'CURRENT_TIMESTAMP' : null);
     }
 
     public function json(string $name, bool $nullable = true): self
@@ -181,11 +192,48 @@ final class TableDefinition
     }
 
     /**
+     * 生成カラム。列の行は `{name} {type} AS ({expression}) {STORED|VIRTUAL}` で、NOT NULL・DEFAULT を付けない
+     * (MariaDB は生成カラムの NOT NULL を構文の誤りにするため、常に NULL を許す)。
+     *
+     * 生成カラムは通常の列をすべて宣言した後にまとめて宣言する。dbDelta は足りない列を宣言の順に1列ずつ ADD するため、
+     * 生成カラムが後の列を参照すると ADD が失敗する。
+     *
+     * @param string $type 小文字の型(例: 'bigint(20) unsigned'・'varchar(40)')。rawColumn() と同じ型の表記の規則で検証する
+     * @param literal-string $expression 式。文字列のリテラルは書けるが、文の連結・コメント・括弧の外への脱出を字句の検証で拒否する
+     *
+     * @throws SchemaException 型・式の検証に違反した場合
+     */
+    public function generated(string $name, string $type, string $expression, GeneratedColumnStorage $storage): self
+    {
+        // $type はそのまま列の行に出すため、小文字に書き換えずに検証する
+        if (preg_match('/\A[a-z]+(\(\d+(,\d+)?\))?( unsigned)?\z/', $type) !== 1) {
+            throw new SchemaException("generated column '{$name}' type must be a lowercase type such as 'bigint(20) unsigned' or 'varchar(40)': {$type}");
+        }
+
+        $this->assertCanonicalType($name, $type);
+        self::assertGenerationExpression($name, $expression);
+        preg_match('/\A[a-z]+/', $type, $typeName);
+
+        return $this->addColumn(
+            $name,
+            "{$type} AS ({$expression}) {$storage->value}",
+            true,
+            null,
+            self::kindOfType($typeName[0] ?? ''),
+            null,
+            $storage,
+        );
+    }
+
+    /**
      * 型以降の定義を書いた列。引用符・バッククォート・セミコロンは拒否する(そのため文字列の既定値は書けない)。
+     * コメント(スラッシュとアスタリスクの組・`#`・`--`)と、生成カラムの構文(`AS (`・`GENERATED ALWAYS`)も拒否する(生成カラムは
+     * generated() で宣言する。コメントの中の語で生成カラムの判定をすり抜けさせないため、コメントを先に拒否する)。
      *
      * DB が別の表記で記録し、dbDelta の差分が残り続ける型の表記は、宣言の時点で拒否する。型の別名(TYPE_ALIASES)、
      * `serial`、精度の引数が1つの `float(p)`・`double(p)`、表示幅の無い整数の型(INTEGER_WIDTHS)である。
-     * NULL の可否と既定値は、定義の文字列の NOT NULL と最後の DEFAULT から読み、既定値の種類は型の名前で決める。
+     * NULL の可否・既定値・ON UPDATE は、定義の文字列の NOT NULL・最後の DEFAULT・最後の日時の関数の ON UPDATE から読み、
+     * 既定値の種類は型の名前で決める。
      *
      * @throws SchemaException
      */
@@ -195,23 +243,29 @@ final class TableDefinition
             throw new SchemaException('raw column definition must not contain quotes, backticks, or semicolons');
         }
 
-        $normalized = strtolower((string) preg_replace('/\s+/', ' ', trim($definition)));
-
-        foreach (self::TYPE_ALIASES as $alias => $canonical) {
-            if (preg_match('/\A' . preg_quote($alias, '/') . '(?![a-z0-9_])/', $normalized) === 1) {
-                throw new SchemaException("column '{$name}' uses the type alias '{$alias}', which the database stores under another name; use '{$canonical}' instead");
-            }
+        if (preg_match('/\/\*|\*\/|#|--/', $definition) === 1) {
+            throw new SchemaException("raw column '{$name}' definition must not contain comments (/*, */, #, --)");
         }
 
-        $this->assertConvergingNotation($name, $normalized);
+        if (preg_match('/\bas\s*\(/i', $definition) === 1 || preg_match('/\bgenerated\s+always\b/i', $definition) === 1) {
+            throw new SchemaException("raw column '{$name}' must not define a generated column; declare it with generated() instead");
+        }
+
+        $normalized = strtolower((string) preg_replace('/\s+/', ' ', trim($definition)));
+        $this->assertCanonicalType($name, $normalized);
         preg_match('/\A[a-z]+/', $normalized, $type);
-        $typeName = $type[0] ?? '';
-        $kind = \in_array($typeName, self::NUMBER_TYPES, true) ? 'number' : (\in_array($typeName, self::TEMPORAL_TYPES, true) ? 'temporal' : 'string');
 
         // dbDelta は列名の後の1つの空白に続く語を型として読むため、前後の空白を除いて書く
         $definition = trim($definition);
 
-        return $this->addColumn($name, $definition, preg_match('/\bnot\s+null\b/', $normalized) !== 1, self::lastDefault($definition), $kind);
+        return $this->addColumn(
+            $name,
+            $definition,
+            preg_match('/\bnot\s+null\b/', $normalized) !== 1,
+            self::lastDefault($definition),
+            self::kindOfType($type[0] ?? ''),
+            self::lastOnUpdate($definition),
+        );
     }
 
     public function primary(string ...$columns): self
@@ -314,7 +368,7 @@ final class TableDefinition
 
         $fullName = $connection->tableName($this->name);
         $this->assertNameLength($fullName, 'full table name');
-        $lines = $this->columnLines;
+        $lines = array_values($this->columnLines);
         $lines[] = 'PRIMARY KEY  (' . implode(',', $primaryColumns) . ')';
 
         // UNIQUE KEYの行(宣言順)の後にKEYの行(宣言順)を置く
@@ -371,6 +425,51 @@ final class TableDefinition
         return $this->columnAttributes($name)['kind'];
     }
 
+    /**
+     * toSql() と同じ列の行(例: 'updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP')。Migrator が生成カラムの
+     * MODIFY に使う。
+     *
+     * @throws SchemaException 列が無い場合
+     */
+    public function columnSql(string $name): string
+    {
+        if (!\array_key_exists($name, $this->columnLines)) {
+            throw new SchemaException("unknown column: {$name}");
+        }
+
+        return $this->columnLines[$name];
+    }
+
+    /**
+     * 列の ON UPDATE の値。datetime() は onUpdateCurrentTimestamp が真なら 'CURRENT_TIMESTAMP'、rawColumn() は定義の最後の
+     * 日時の関数の ON UPDATE の値(例: 'CURRENT_TIMESTAMP(6)'・'NOW()')。無ければ null。
+     *
+     * @throws SchemaException 列が無い場合
+     */
+    public function columnOnUpdate(string $name): ?string
+    {
+        return $this->columnAttributes($name)['onUpdate'];
+    }
+
+    /**
+     * 生成カラムならその保存の方式、通常の列なら null。
+     *
+     * @throws SchemaException 列が無い場合
+     */
+    public function columnGeneration(string $name): ?GeneratedColumnStorage
+    {
+        return $this->columnAttributes($name)['generation'];
+    }
+
+    /** @return list<string> 生成カラムの名前(宣言順) */
+    public function generatedColumns(): array
+    {
+        return array_values(array_filter(
+            $this->columnNames,
+            fn(string $name): bool => $this->columnAttributes[$name]['generation'] !== null,
+        ));
+    }
+
     /** collation() で宣言した照合順序。宣言していなければ null。 */
     public function declaredCollation(): ?string
     {
@@ -391,20 +490,35 @@ final class TableDefinition
         return $this->columnTypes[$name];
     }
 
-    /** @param 'number'|'string'|'temporal' $kind 既定値の比べ方を決める種類 */
-    private function addColumn(string $name, string $definition, bool $nullable, ?string $default, string $kind): self
-    {
+    /**
+     * @param 'number'|'string'|'temporal' $kind 既定値の比べ方を決める種類
+     *
+     * @throws SchemaException 名前の誤り・重複と、生成カラムの後の通常の列
+     */
+    private function addColumn(
+        string $name,
+        string $definition,
+        bool $nullable,
+        ?string $default,
+        string $kind,
+        ?string $onUpdate = null,
+        ?GeneratedColumnStorage $generation = null,
+    ): self {
         Identifier::schemaSimple($name);
 
         if (\in_array($name, $this->columnNames, true)) {
             throw new SchemaException("duplicate column: {$name}");
         }
 
+        if ($generation === null && $this->generatedColumns() !== []) {
+            throw new SchemaException("column '{$name}' must be declared before the generated columns; declare generated columns after all regular columns");
+        }
+
         $typeParts = explode(' ', $definition, 2);
         $this->columnNames[] = $name;
         $this->columnTypes[$name] = $typeParts[0] === '' ? $definition : $typeParts[0];
-        $this->columnLines[] = "{$name} {$definition}";
-        $this->columnAttributes[$name] = ['nullable' => $nullable, 'default' => $default, 'kind' => $kind];
+        $this->columnLines[$name] = "{$name} {$definition}";
+        $this->columnAttributes[$name] = ['nullable' => $nullable, 'default' => $default, 'kind' => $kind, 'onUpdate' => $onUpdate, 'generation' => $generation];
 
         return $this;
     }
@@ -422,6 +536,112 @@ final class TableDefinition
         $value = end($matches[1]);
 
         return $value === false || strcasecmp($value, 'NULL') === 0 ? null : $value;
+    }
+
+    /**
+     * rawColumn() の定義の最後の、日時の関数(CURRENT_TIMESTAMP・NOW()・LOCALTIMESTAMP・LOCALTIME と精度)の ON UPDATE の値。
+     * 外部キーの参照の動作(`ON UPDATE CASCADE` 等)には当たらない。無ければ null。
+     */
+    private static function lastOnUpdate(string $definition): ?string
+    {
+        // NOW は括弧が必須。語の後に区切りを求め、nowx・current_timestamp_x 等の別の語には当たらない
+        if (preg_match_all('/\bON\s+UPDATE\s+((?:current_timestamp|localtimestamp|localtime)(?![\w(])|(?:current_timestamp|localtimestamp|localtime|now)\(\d*\))/i', $definition, $matches) < 1) {
+            return null;
+        }
+
+        $value = end($matches[1]);
+
+        return $value === false ? null : $value;
+    }
+
+    /**
+     * 既定値の比べ方を決める種類を、型の名前で決める。
+     *
+     * @return 'number'|'string'|'temporal'
+     */
+    private static function kindOfType(string $typeName): string
+    {
+        return \in_array($typeName, self::NUMBER_TYPES, true) ? 'number' : (\in_array($typeName, self::TEMPORAL_TYPES, true) ? 'temporal' : 'string');
+    }
+
+    /**
+     * rawColumn()・generated() の型の表記が、DB が同じ表記で記録するものであることを確かめる。型の別名(TYPE_ALIASES)と、
+     * dbDelta の差分が残り続ける表記(assertConvergingNotation())を拒否する。
+     *
+     * @param string $normalized 小文字にし、連続する空白を1つにした定義
+     *
+     * @throws SchemaException
+     */
+    private function assertCanonicalType(string $name, string $normalized): void
+    {
+        foreach (self::TYPE_ALIASES as $alias => $canonical) {
+            if (preg_match('/\A' . preg_quote($alias, '/') . '(?![a-z0-9_])/', $normalized) === 1) {
+                throw new SchemaException("column '{$name}' uses the type alias '{$alias}', which the database stores under another name; use '{$canonical}' instead");
+            }
+        }
+
+        $this->assertConvergingNotation($name, $normalized);
+    }
+
+    /**
+     * 生成カラムの式の字句を、先頭から1文字ずつ走査して検証する。式に文字列のリテラルを書けるようにしたうえで、
+     * dbDelta が SQL を分ける `;`・改行、既定値を探す ` DEFAULT '`、コメント、`AS (` … `)` の外への脱出で、DDL を
+     * 壊せないようにする。式の中の識別子・関数の妥当性は DB に任せる。
+     *
+     * @throws SchemaException
+     */
+    private static function assertGenerationExpression(string $name, string $expression): void
+    {
+        $invalid = static fn(string $reason): SchemaException => new SchemaException("generated column '{$name}' expression {$reason}: {$expression}");
+
+        if (trim($expression) === '' || preg_match('/\A[\x20-\x7E]+\z/', $expression) !== 1) {
+            throw $invalid('must be non-empty printable ASCII without line breaks');
+        }
+
+        if (preg_match('/[;`"\\\\]/', $expression) === 1) {
+            throw $invalid('must not contain ;, `, ", or \\');
+        }
+
+        if (preg_match('/\bdefault\b/i', $expression) === 1) {
+            throw $invalid('must not contain the word DEFAULT');
+        }
+
+        $inLiteral = false;
+        $depth = 0;
+        $length = \strlen($expression);
+
+        for ($i = 0; $i < $length; ++$i) {
+            $char = $expression[$i];
+
+            // '' はリテラルの内外を2回切り替えるため、リテラルの中の ' として書ける
+            if ($char === "'") {
+                $inLiteral = !$inLiteral;
+
+                continue;
+            }
+
+            if ($inLiteral) {
+                continue;
+            }
+
+            if ($char === '#' || \in_array(substr($expression, $i, 2), ['--', '/*', '*/'], true)) {
+                throw $invalid('must not contain comments outside string literals');
+            }
+
+            if ($char === '(') {
+                ++$depth;
+            } elseif ($char === ')' && --$depth < 0) {
+                throw $invalid('has unbalanced parentheses');
+            }
+        }
+
+        if ($inLiteral) {
+            throw $invalid('has an unterminated string literal');
+        }
+
+        if ($depth !== 0) {
+            throw $invalid('has unbalanced parentheses');
+        }
     }
 
     /**
@@ -450,7 +670,7 @@ final class TableDefinition
     /**
      * @throws SchemaException 列が無い場合
      *
-     * @return array{nullable: bool, default: string|null, kind: 'number'|'string'|'temporal'}
+     * @return array{nullable: bool, default: string|null, kind: 'number'|'string'|'temporal', onUpdate: string|null, generation: GeneratedColumnStorage|null}
      */
     private function columnAttributes(string $name): array
     {
@@ -479,6 +699,13 @@ final class TableDefinition
         }
 
         $this->assertColumnsExist($columns);
+
+        foreach ($columns as $column) {
+            if ($this->columnAttributes[$column]['generation'] !== null) {
+                throw new SchemaException("primary key must not contain the generated column: {$column}");
+            }
+        }
+
         $this->primaryColumns = $columns;
     }
 

@@ -6,6 +6,7 @@ namespace TMSWP\Core\Model;
 
 use Throwable;
 use TMSWP\Core\Exception\MigrationException;
+use TMSWP\Core\Exception\QueryException;
 use TMSWP\Core\Exception\RuntimeException;
 use TMSWP\Core\Exception\SchemaException;
 use TMSWP\Core\Kernel\Kernel;
@@ -119,7 +120,7 @@ final class Migrator
                 continue;
             }
 
-            $this->apply($table, $definition->toSql($this->connection));
+            $this->apply($definition);
             $this->assertMigrated($definition);
             $hashes[$table] = $hash;
             $this->saveHashes($hashes);
@@ -252,11 +253,18 @@ final class Migrator
      * 消すため、適用の後の last_error は最後の文のエラーしか表さない。途中の文の失敗と、エラーを残さずに反映されなかった
      * 変更は、同じ定義の dry-run(execute=false)が返す残った差分で検出する。
      *
+     * dbDelta は、型が同じなら既にある生成カラムの式を変えない。そのため、dbDelta の前にあった列のうち定義の生成カラムに
+     * 当たるものを、dbDelta の後に MODIFY で定義の列の行にする(applyGeneratedColumns())。
+     *
      * @throws MigrationException
      */
-    private function apply(string $table, string $sql): void
+    private function apply(TableDefinition $definition): void
     {
+        $table = $definition->tableName();
+        $sql = $definition->toSql($this->connection);
         $this->loadDbDelta();
+        // 定義に生成カラムが無ければ、MODIFY をしないため列を読まない
+        $existingColumns = $definition->generatedColumns() !== [] && $this->tableExists($definition) ? $this->existingColumns($definition) : [];
         dbDelta($sql);
         $error = $this->connection->lastError();
 
@@ -264,6 +272,7 @@ final class Migrator
             throw new MigrationException("dbDelta failed on table {$table}: {$error}");
         }
 
+        $this->applyGeneratedColumns($definition, $existingColumns);
         $remaining = dbDelta($sql, false);
 
         if ($remaining !== []) {
@@ -272,11 +281,46 @@ final class Migrator
     }
 
     /**
+     * 定義の生成カラムのうち、dbDelta の前からあった列を、MODIFY で定義の列の行にする。式が変わっていなくても実行する
+     * (前の式を持たないため)。dbDelta が今回 ADD した列には出さない。
+     *
+     * MODIFY は、生成カラムの式の変更と、通常の列から STORED の生成カラムへの変更ができる。STORED と VIRTUAL の入れ替えと、
+     * 通常の列から VIRTUAL への変更は、MariaDB(1907)・MySQL(3106)ともできない。
+     *
+     * @param array<string, mixed> $existingColumns dbDelta の前にあった列(列名がキー)
+     *
+     * @throws MigrationException MODIFY が DB のエラーになった場合
+     */
+    private function applyGeneratedColumns(TableDefinition $definition, array $existingColumns): void
+    {
+        $table = $definition->tableName();
+
+        foreach ($definition->generatedColumns() as $column) {
+            if (!\array_key_exists($column, $existingColumns)) {
+                continue;
+            }
+
+            try {
+                // execute() は bindings が空でも % の並びを検証し、%% を % に戻すため、式の % を %% にする
+                $this->connection->execute('ALTER TABLE ' . $this->connection->tableName($table) . ' MODIFY COLUMN ' . str_replace('%', '%%', $definition->columnSql($column)));
+            } catch (QueryException $exception) {
+                throw new MigrationException(
+                    "failed to apply the generated column {$table}.{$column}: {$exception->getMessage()}; "
+                    . 'switching between STORED and VIRTUAL and changing a regular column to VIRTUAL are not possible with MODIFY, so drop the column and add it again with a manual ALTER TABLE; '
+                    . 'a Duplicate entry error means that rows have the same value of the new expression in a UNIQUE index, so fix the data or the expression',
+                    previous: $exception,
+                );
+            }
+        }
+    }
+
+    /**
      * 適用後のテーブルの実際の構造を定義と照らし合わせる。dbDelta の比較(apply() の残った差分)を補う。
      *
-     * 列・主キー・索引があることに加え、各列の NULL の可否と既定値、collation() で宣言したテーブルの照合順序を比べる。
-     * dbDelta は型と引用符で囲んだ既定値の変更しか適用せず、数値の既定値・NULL の可否・照合順序の変更は、適用も
-     * 残った差分の報告もしない。食い違えば、足りない変更を自動で ALTER せずに例外にする(手動の ALTER が要る)。
+     * 列・主キー・索引があることに加え、各列の生成カラムかどうかとその保存の方式・NULL の可否・既定値・ON UPDATE、
+     * collation() で宣言したテーブルの照合順序を比べる。dbDelta は型と引用符で囲んだ既定値の変更しか適用せず、
+     * 数値の既定値・NULL の可否・既にある列の ON UPDATE・照合順序の変更は、適用も残った差分の報告もしない。食い違えば、
+     * 足りない変更を自動で ALTER せずに例外にする(手動の ALTER が要る)。
      *
      * @throws MigrationException
      */
@@ -296,6 +340,17 @@ final class Migrator
             }
 
             $existing = $existingColumns[$column];
+            $generation = $definition->columnGeneration($column);
+
+            // dbDelta は型が同じなら列を変えないため、通常の列と生成カラムの違いは残る
+            if ($existing['generation'] !== $generation) {
+                throw self::unappliedChange(
+                    $table,
+                    "column {$column} is expected to be " . self::describeGeneration($generation) . ' but the database has ' . self::describeGeneration($existing['generation']),
+                    ', or change the definition to match the database (generated() for a generated column)',
+                );
+            }
+
             $nullable = $definition->columnNullable($column);
 
             if ($existing['nullable'] !== $nullable) {
@@ -310,6 +365,16 @@ final class Migrator
                     $table,
                     "column {$column} is expected to have " . self::describeDefault($default) . ' but the database has ' . self::describeDefault($existing['default']),
                     ', or, if the database stored a rounded value, change the definition to the value the database stores',
+                );
+            }
+
+            $onUpdate = $definition->columnOnUpdate($column);
+
+            if (($onUpdate === null ? null : self::normalizeTemporal($onUpdate)) !== $existing['onUpdate']) {
+                throw self::unappliedChange(
+                    $table,
+                    "column {$column} is expected to have " . self::describeOnUpdate($onUpdate) . ' but the database has ' . self::describeOnUpdate($existing['onUpdate']),
+                    ', or change the definition to match the database (datetime(onUpdateCurrentTimestamp: true) for ON UPDATE CURRENT_TIMESTAMP)',
                 );
             }
         }
@@ -356,6 +421,16 @@ final class Migrator
     private static function describeDefault(?string $default): string
     {
         return $default === null ? 'no default' : "DEFAULT {$default}";
+    }
+
+    private static function describeGeneration(?GeneratedColumnStorage $generation): string
+    {
+        return $generation === null ? 'a regular column' : "a {$generation->value} generated column";
+    }
+
+    private static function describeOnUpdate(?string $onUpdate): string
+    {
+        return $onUpdate === null ? 'no ON UPDATE' : "ON UPDATE {$onUpdate}";
     }
 
     /**
@@ -428,14 +503,18 @@ final class Migrator
         return ($matches[1] === '-' ? '-' : '') . $number;
     }
 
-    /** CURRENT_TIMESTAMP の表記をそろえる。精度は保ち、空の括弧と精度 0 は精度なしとする。それ以外の値はそのまま。 */
+    /**
+     * CURRENT_TIMESTAMP の表記をそろえる。同義語の NOW()・LOCALTIMESTAMP・LOCALTIME(DB はどれも CURRENT_TIMESTAMP と
+     * 記録する)も CURRENT_TIMESTAMP にする。精度は保ち、空の括弧と精度 0 は精度なしとする。それ以外の値はそのまま。
+     */
     private static function normalizeTemporal(string $value): string
     {
-        if (preg_match('/\Acurrent_timestamp(?:\((\d*)\))?\z/i', $value, $matches) !== 1) {
+        // NOW は括弧が必須の関数のため、括弧の無い now は同義語とみなさない
+        if (preg_match('/\A(?:(?:current_timestamp|localtimestamp|localtime)(?:\((\d*)\))?|now\((\d*)\))\z/i', $value, $matches) !== 1) {
             return $value;
         }
 
-        $precision = ltrim($matches[1] ?? '', '0');
+        $precision = ltrim(($matches[1] ?? '') . ($matches[2] ?? ''), '0');
 
         return $precision === '' ? 'CURRENT_TIMESTAMP' : "CURRENT_TIMESTAMP({$precision})";
     }
@@ -465,7 +544,16 @@ final class Migrator
         return $this->connection->selectVar('SHOW TABLES LIKE %s', [$this->connection->tableName($definition->tableName())]) !== null;
     }
 
-    /** @return array<string, array{nullable: bool, default: string|null}> 列名 => NULL の可否と既定値 */
+    /**
+     * 実際の列の NULL の可否・既定値・生成カラムの保存の方式・ON UPDATE の値(CURRENT_TIMESTAMP の表記をそろえたもの)。
+     *
+     * 生成カラムかどうかと ON UPDATE は Extra から読む。MariaDB は `STORED GENERATED`・`on update current_timestamp()`、
+     * MySQL は `STORED GENERATED`・`DEFAULT_GENERATED on update CURRENT_TIMESTAMP` と返す。MySQL が既定値
+     * CURRENT_TIMESTAMP の列に付ける `DEFAULT_GENERATED` は、`stored`・`virtual` と空白で続く `generated` だけを読む
+     * ため、生成カラムと取り違えない。
+     *
+     * @return array<string, array{nullable: bool, default: string|null, generation: GeneratedColumnStorage|null, onUpdate: string|null}> 列名 => 属性
+     */
     private function existingColumns(TableDefinition $definition): array
     {
         $columns = [];
@@ -474,12 +562,16 @@ final class Migrator
             $field = $row['Field'] ?? null;
             $null = $row['Null'] ?? null;
             $default = $row['Default'] ?? null;
+            $extra = $row['Extra'] ?? null;
 
-            if (!\is_string($field) || ($null !== 'YES' && $null !== 'NO') || ($default !== null && !\is_string($default))) {
+            if (!\is_string($field) || ($null !== 'YES' && $null !== 'NO') || ($default !== null && !\is_string($default)) || !\is_string($extra)) {
                 throw new MigrationException("SHOW FULL COLUMNS returned an invalid row for {$definition->tableName()}");
             }
 
-            $columns[$field] = ['nullable' => $null === 'YES', 'default' => $default];
+            $extra = strtolower($extra);
+            $generation = preg_match('/\b(stored|virtual) generated\b/', $extra, $storage) === 1 ? GeneratedColumnStorage::from(strtoupper($storage[1])) : null;
+            $onUpdate = preg_match('/\bon update (current_timestamp(\(\d*\))?)/', $extra, $timestamp) === 1 ? self::normalizeTemporal($timestamp[1]) : null;
+            $columns[$field] = ['nullable' => $null === 'YES', 'default' => $default, 'generation' => $generation, 'onUpdate' => $onUpdate];
         }
 
         return $columns;

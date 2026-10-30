@@ -7,8 +7,10 @@ namespace TMSWP\Core\Tests\Unit;
 use PhpToken;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
+use TMSWP\Core\Exception\DeadlockException;
 use TMSWP\Core\Exception\HydrationException;
 use TMSWP\Core\Exception\InvalidQueryException;
+use TMSWP\Core\Exception\LockWaitTimeoutException;
 use TMSWP\Core\Exception\MigrationException;
 use TMSWP\Core\Exception\QueryException;
 use TMSWP\Core\Exception\SchemaException;
@@ -124,13 +126,14 @@ final class LayerConventionTest extends UnitTestCase
 
     /**
      * Model層とView層のクラスは、interface・enum・traitとModelの基底を除いてfinalである。Model層の例外は、エンティティ層と
-     * 共有するQueryException(docs/06 R4)を除いてfinalである。
+     * 共有するQueryException(docs/06 R4)を除いてfinalである。QueryExceptionの派生のDeadlockException・
+     * LockWaitTimeoutExceptionもfinalである。
      */
     public function testModelAndViewClassesAreFinal(): void
     {
         $classes = array_values(self::sourceFiles(['Model', 'View']));
 
-        foreach ([SchemaException::class, MigrationException::class, InvalidQueryException::class, HydrationException::class] as $exception) {
+        foreach ([SchemaException::class, MigrationException::class, InvalidQueryException::class, HydrationException::class, DeadlockException::class, LockWaitTimeoutException::class] as $exception) {
             $classes[] = $exception;
         }
 
@@ -150,6 +153,12 @@ final class LayerConventionTest extends UnitTestCase
         self::assertGreaterThan(14, $checked);
         self::assertTrue((new ReflectionClass(Model::class))->isAbstract());
         self::assertFalse((new ReflectionClass(QueryException::class))->isFinal());
+
+        foreach ([DeadlockException::class, LockWaitTimeoutException::class] as $exception) {
+            $parent = (new ReflectionClass($exception))->getParentClass();
+            self::assertNotFalse($parent);
+            self::assertSame(QueryException::class, $parent->getName());
+        }
     }
 
     /**

@@ -80,8 +80,11 @@ final class QueryBuilder
     /** @var class-string|null */
     private ?string $rowClass;
 
+    private ?RowLock $lock = null;
+
     /**
      * @param class-string|null $rowClass
+     * @param TableDefinition|null $definition テーブルの定義。渡すと update() が生成カラムへの代入を拒否する(Model::query() が渡す)
      *
      * @throws HydrationException $rowClass が存在しないクラスの場合
      * @throws InvalidQueryException $rowClass が Model のサブクラスの場合(as() と同じ検査)
@@ -90,6 +93,7 @@ final class QueryBuilder
         private readonly Connection $connection,
         private readonly string $table,
         ?string $rowClass = null,
+        private readonly ?TableDefinition $definition = null,
     ) {
         Identifier::bareTable($table);
         $this->rowClass = $rowClass === null ? null : self::rowClassOrFail($rowClass);
@@ -280,6 +284,18 @@ final class QueryBuilder
     }
 
     /**
+     * 行ロックの句を、SELECT文の最後(OFFSETの後)に付ける。2回目の呼び出しは上書きする。get()・first()・value()・
+     * pluck()・exists()は、Connectionのtransaction()の中でだけ実行できる(トランザクションの外の行ロックは文の終わりで
+     * 解けて意味が無いため)。count()・update()・delete()とは併用できない。toSql()にも句を出す。
+     */
+    public function lock(RowLock $lock): self
+    {
+        $this->lock = $lock;
+
+        return $this;
+    }
+
+    /**
      * @param class-string<object> $class
      *
      * @throws HydrationException $class が存在しないクラスの場合
@@ -295,6 +311,7 @@ final class QueryBuilder
     /** @return list<object> */
     public function get(): array
     {
+        $this->assertLockInTransaction();
         $query = $this->buildSelect();
         $rows = $this->connection->select($query->sql, $query->bindings);
         $objects = [];
@@ -320,6 +337,7 @@ final class QueryBuilder
      */
     public function value(string $column): mixed
     {
+        $this->assertLockInTransaction();
         $key = $this->resultKey($column);
         $clone = clone $this;
 
@@ -347,6 +365,7 @@ final class QueryBuilder
      */
     public function pluck(string $column, ?string $keyColumn = null): array
     {
+        $this->assertLockInTransaction();
         $valueKey = $this->resultKey($column);
         $keyKey = $keyColumn === null ? null : $this->resultKey($keyColumn);
         $values = [];
@@ -382,6 +401,10 @@ final class QueryBuilder
 
     public function count(): int
     {
+        if ($this->lock !== null) {
+            throw new InvalidQueryException('count() cannot be used with lock()');
+        }
+
         $query = $this->buildCount();
         $value = $this->connection->selectVar($query->sql, $query->bindings);
 
@@ -398,15 +421,31 @@ final class QueryBuilder
 
     public function exists(): bool
     {
+        $this->assertLockInTransaction();
         $query = $this->buildSelect('1', 1);
 
         return $this->connection->selectVar($query->sql, $query->bindings) !== null;
     }
 
-    /** @param array<string, mixed> $values */
+    /**
+     * @param array<string, mixed> $values
+     *
+     * @throws InvalidQueryException テーブルの定義を渡して作ったビルダで、生成カラムに代入する場合(ほかの誤用と同じ)
+     */
     public function update(array $values): int
     {
         $this->assertWritableQuery($values);
+
+        // DB の違い(MySQL はエラー、MariaDB は値を黙って捨てる)をなくすため、生成カラムへの代入は DB に送る前に拒否する
+        // 列名は大小文字を区別しないため、そろえて比べる
+        $keys = array_change_key_case($values);
+
+        foreach ($this->definition?->generatedColumns() ?? [] as $column) {
+            if (\array_key_exists(strtolower($column), $keys)) {
+                throw new InvalidQueryException("update() cannot assign the generated column {$column}; the database computes its value");
+            }
+        }
+
         $assignments = [];
         $bindings = [];
 
@@ -526,7 +565,7 @@ final class QueryBuilder
         $child = new self($this->connection, $this->table, $this->rowClass);
         $group($child);
 
-        if ($child->selects !== [] || $child->fromAlias !== null || $child->joins !== [] || $child->groups !== [] || $child->orders !== [] || $child->limitValue !== null || $child->offsetValue !== null) {
+        if ($child->selects !== [] || $child->fromAlias !== null || $child->joins !== [] || $child->groups !== [] || $child->orders !== [] || $child->limitValue !== null || $child->offsetValue !== null || $child->lock !== null) {
             throw new InvalidQueryException('where group can contain only where clauses');
         }
 
@@ -637,7 +676,7 @@ final class QueryBuilder
     }
 
     /**
-     * ORDER BY・LIMIT・OFFSET までの SELECT 文。$selectOverride を渡すと SELECT 句とその値を置き換え、
+     * ORDER BY・LIMIT・OFFSET と行ロックの句までの SELECT 文。$selectOverride を渡すと SELECT 句とその値を置き換え、
      * $limitOverride を渡すと limit() の値を置き換える。
      */
     private function buildSelect(?string $selectOverride = null, ?int $limitOverride = null): SqlQuery
@@ -666,6 +705,10 @@ final class QueryBuilder
         if ($this->offsetValue !== null) {
             $sql .= ' OFFSET %d';
             $bindings[] = $this->offsetValue;
+        }
+
+        if ($this->lock !== null) {
+            $sql .= ' ' . $this->lock->value;
         }
 
         return new SqlQuery($sql, $bindings);
@@ -730,6 +773,18 @@ final class QueryBuilder
 
         if ($this->wheres === []) {
             throw new InvalidQueryException('write query requires where clause');
+        }
+
+        if ($this->lock !== null) {
+            throw new InvalidQueryException('update() and delete() cannot be used with lock()');
+        }
+    }
+
+    /** 行ロックの句を付けたSELECTを、トランザクションの外で実行させない。 */
+    private function assertLockInTransaction(): void
+    {
+        if ($this->lock !== null && !$this->connection->inTransaction()) {
+            throw new InvalidQueryException('lock() requires Connection::transaction(); a row lock outside a transaction is released at the end of the statement');
         }
     }
 

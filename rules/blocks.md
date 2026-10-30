@@ -227,4 +227,4 @@ final class CardBlockHook extends Hook
 - ブロックの描画を変えるフック: rules/hooks.md
 - 本番へのデプロイの手順: rules/deploy.md
 - ブロックテーマ・ACF Blocksは対象外(上の「対象外」)
-- 探索・ブロックの登録の仕様: TMSWPの設計文書[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/02-kernel.md)の「Discovery」と「コンポーネント初期化スケジューリング」の節
+- 探索・ブロックの登録の仕様: TMSWPの設計文書[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.10.0/docs/02-kernel.md)の「Discovery」と「コンポーネント初期化スケジューリング」の節
