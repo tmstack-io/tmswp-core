@@ -9,8 +9,8 @@ use TMSWP\Core\Kernel\Kernel;
 use WP_Error;
 
 /**
- * エンティティの層で WordPress の関数が返した WP_Error を、エラー方針(00-overview.md §5.6)の実行時のデータ取得の
- * 失敗として扱う。WP_Error の扱いはここだけに置く。
+ * エンティティの層で WordPress の関数が返した WP_Error を、実行時のデータ取得の失敗として扱う(debug では例外を投げ、
+ * 本番ではエンティティクラスの Kernel のロガーに error で記録して既定値を返す)。WP_Error の扱いはここだけに置く。
  *
  * 「該当なし」(WordPress の関数が返す false・空配列等)はここに渡さず、呼び出し側が正常な結果として返す。
  *

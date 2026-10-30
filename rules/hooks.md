@@ -197,4 +197,4 @@ final class PostTypeColumnHook extends Hook
 - 投稿タイプ・タクソノミー・ロールの登録はフックで書かない: rules/post-type.md・rules/taxonomy.md・rules/user-role.md
 - テンプレートで使う値の用意はフックで書かない: rules/page.md
 - ブロックの描画を変えるフック: rules/blocks.mdの「ブロック専用のフック」
-- フックの属性・探索・初期化のタイミングの仕様: TMSWPの設計文書 docs/02-kernel.md §5・§7
+- フックの属性・探索・初期化のタイミングの仕様: TMSWPの設計文書[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/02-kernel.md)の「ComponentAttributeInterface / ComponentInitializerInterface」と「コンポーネント初期化スケジューリング」の節

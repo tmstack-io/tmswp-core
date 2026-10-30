@@ -119,8 +119,8 @@ final class TempFileGc
     }
 
     /**
-     * 失敗をエラー方針(00-overview.md §5.6)に従って扱う。debug では例外を投げ、本番では Kernel のロガーに error で
-     * 記録する。文脈には例外のクラスと場所だけを入れ、パスを含むメッセージは入れない(Form の §ログ と同じ)。
+     * 失敗は、debug では例外を投げ、本番では Kernel のロガーに error で記録する。文脈には例外のクラス・場所・
+     * previous のクラスだけを入れ、パスを含むメッセージは入れない。
      *
      * @throws TempFileException debug のとき
      */

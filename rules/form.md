@@ -219,7 +219,7 @@ final class ContactPage
 ```
 
 - テンプレートの先頭で型付きのクラスを明示的に呼ぶ。`template_redirect`等のフックでテンプレートを判定してフォームを駆動しない。どのテンプレートで何を駆動するかを、テンプレートのファイルだけで追えるようにするため。
-- `exit`は、FWの設計原則1(docs/00-overview.md。テンプレートで`exit`を使わない)の例外として、PRGの`wp_safe_redirect()`の直後に限って使う。ほかの場所では使わない。
+- `exit`は、FWの設計原則1(TMSWPの設計文書[docs/00-overview.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/00-overview.md)の「設計原則 5箇条」の節。テンプレートで`exit`を使わない)の例外として、PRGの`wp_safe_redirect()`の直後に限って使う。ほかの場所では使わない。
 - 完了の後にリダイレクトするのは、完了画面のリロードで同じPOSTを送り直させないため。リダイレクトしない場合も、FWの二重送信の防止で完了処理は1回だけ動く(「確認画面なしのフォーム」の例)。
 - プラグインのショートコードでフォームを出す場合は、出力の前のフック(`template_redirect`)で、ショートコードを含むページかを判定して`handle()`を先に呼び、PRGのリダイレクトもそこで行う。ショートコードでは同じ`Form`のインスタンスを使う(`handle()`は2回目以降、最初の結果を返す)。ブロックで出す場合は、ショートコードの判定では見つからないため、ブロックを含むページかを出力の前に判定する別の処理が要る。
 
@@ -937,4 +937,4 @@ final class InquiryForm
 - テンプレートの前処理クラスの書き方: rules/page.md
 - フリガナの項目(カタカナ・ひらがなの正規化と検証): vendor/tmswp/ja-toolkit/rules/ja-toolkit.md(導入はrules/extensions.md)
 - 管理画面の設定ページのフォーム: vendor/tmswp/settings-page/rules/settings-page.md
-- フォームの仕様: TMSWPの設計文書 docs/05-form.md
+- フォームの仕様: TMSWPの設計文書[docs/05-form.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/05-form.md)

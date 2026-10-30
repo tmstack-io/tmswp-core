@@ -396,7 +396,9 @@ final class Connection
     }
 
     /**
-     * wpdb の insert/update/delete に渡す値を R3 で正規化し、format を導出する。null は wpdb が SQL の NULL
+     * wpdb の insert/update/delete に渡す値を正規化し、format を導出する。BackedEnum はその value にし、bool は 1・0、
+     * Stringable は文字列、DateTimeInterface は `Y-m-d H:i:s` の文字列にし、int・float・string はそのまま渡す。format は、
+     * int と bool が %d、float が %f、それ以外が %s である(BackedEnum は value の型で決める)。null は wpdb が SQL の NULL
      * (where では IS NULL)にするため、そのまま渡す(format は wpdb が無視する)。
      *
      * @param array<string, mixed> $values

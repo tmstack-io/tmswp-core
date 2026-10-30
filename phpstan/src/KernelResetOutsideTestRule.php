@@ -16,7 +16,7 @@ use PHPStan\Rules\Rule;
  * `Kernel::reset()` を PHPUnit の TestCase の子孫クラスの外から呼ぶことを禁じる。
  *
  * reset() は起動済みの全 Kernel をレジストリから外すテスト専用の API で、本番で呼ぶと他のテーマ・プラグインの
- * Kernel まで解決できなくなる(02-kernel.md §3.5)。静的呼び出しと、インスタンス経由の呼び出し(`$kernel->reset()`)を
+ * Kernel まで解決できなくなる。静的呼び出しと、インスタンス経由の呼び出し(`$kernel->reset()`)を
  * 検査する。第一級 callable の生成は KernelResetStaticCallableOutsideTestRule と
  * KernelResetMethodCallableOutsideTestRule が検査する。
  *

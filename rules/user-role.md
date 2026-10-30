@@ -261,4 +261,4 @@ foreach ($page as $member) {
 
 - ユーザーのメタ: rules/meta.md
 - 会員登録のフォーム: rules/form.md
-- ロールの定義・ユーザーのクエリの仕様: TMSWPの設計文書 docs/03-entities.md
+- ロールの定義・ユーザーのクエリの仕様: TMSWPの設計文書[docs/03-entities.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/03-entities.md)

@@ -1423,7 +1423,7 @@ final class FormRuntimeTest extends UnitTestCase
 
             self::assertSame(FormStep::Input, $result->step);
             self::assertSame(['resume' => ['The file upload failed.']], $result->fieldErrors);
-            self::assertSame('resume', $this->logger->records[0]['context']['fields'] ?? null);
+            self::assertSame('resume', $this->firstLogContext()['fields'] ?? null);
         }
 
         self::assertSame([], $this->completed);
@@ -1475,7 +1475,7 @@ final class FormRuntimeTest extends UnitTestCase
                 [['notice', 'tmswp.form: the request to form {form} has malformed input (invalid UTF-8 or a malformed file upload) in: {fields}', 'entry']],
                 $this->logRecords(),
             );
-            self::assertSame(['form' => 'entry', 'fields' => 'name, topics, birth'], $this->logger->records[0]['context']);
+            self::assertSame(['form' => 'entry', 'fields' => 'name, topics, birth'], $this->firstLogContext());
         }
 
         // ほかの項目がすべて検証を通っても、不正な UTF-8 の値を確認トークンの JSON に入れない(JsonException で 500 にしない)
@@ -2113,7 +2113,7 @@ final class FormRuntimeTest extends UnitTestCase
         // 値の検証より前に拒否する
         self::assertSame([], $rejected->fieldErrors);
         self::assertSame([['notice', 'tmswp.form: spam guard {guard} rejected a submission of form {form}', 'contact']], $this->logRecords());
-        self::assertSame(RuntimeTestSpamGuard::class, $this->logger->records[0]['context']['guard']);
+        self::assertSame(RuntimeTestSpamGuard::class, $this->firstLogContext()['guard']);
 
         $guard->pass = true;
 
@@ -2502,6 +2502,20 @@ PHP);
             static fn(array $record): array => [$record['level'], $record['message'], $record['context']['form'] ?? null],
             $this->logger->records,
         );
+    }
+
+    /**
+     * 最初のログの記録のcontextを返す。$this->logger->recordsに[]を代入した後にcontextを読む箇所は、このメソッドを通す。
+     * PHPStan 2.3は、代入の後にFormのhandle()を呼んでも、recordsを空の配列と推論し続けるため。
+     * 記録が無ければ、アサーションの失敗で止まる。
+     *
+     * @return array<mixed>
+     */
+    private function firstLogContext(): array
+    {
+        self::assertArrayHasKey(0, $this->logger->records, 'no log record was written');
+
+        return $this->logger->records[0]['context'];
     }
 
     private function hiddenValue(string $html, string $name): string

@@ -19,7 +19,7 @@ React(`@wordpress/scripts`)で作る独自ブロックは、ビルドの出力�
 
 - 探索コマンド(`wp tmswp discover`)は、テーマ・プラグインのルートの`build/blocks/`以下(入れ子を含む)の`block.json`だけを走査し、探索結果ファイル(`tmswp-discovery.php`)に書く。ソースの`blocks/`は走査しない。
 - debugでは、bootのたびに`build/blocks/`を走査する。本番は探索結果ファイルだけを読む。
-- `build/blocks/`は、探索結果ファイルと同じくコミットしてデプロイする。本番とCIの照合は、ビルドをせずにこの出力を使う。
+- `build/blocks/`は、探索結果ファイルと同じくコミットし、本番へ上げる(rules/deploy.md)。本番とCIの照合は、ビルドをせずにこの出力を使う。
 
 ## 手順
 
@@ -219,11 +219,12 @@ final class CardBlockHook extends Hook
 
 1. `npm run build`の後、`wp tmswp discover --check`が成功すること(`composer qa`に含まれる)。
 2. ブロックエディタの挿入画面に、ブロックとカテゴリが表示されること。
-3. 本番で表示されない場合は、`build/blocks/`がデプロイされているかと、`wp tmswp discover --check`で探索結果ファイルが最新かを確かめる。
+3. 本番で表示されない場合は、`build/blocks/`と探索結果ファイルを上げたか(rules/deploy.md)と、本番で`wp tmswp discover --check`が成功するかを確かめる。
 
 ## 発展
 
 - ブロックを使う投稿タイプ: rules/post-type.md
 - ブロックの描画を変えるフック: rules/hooks.md
+- 本番へのデプロイの手順: rules/deploy.md
 - ブロックテーマ・ACF Blocksは対象外(上の「対象外」)
-- 探索・ブロックの登録の仕様: TMSWPの設計文書 docs/02-kernel.md §4・§7
+- 探索・ブロックの登録の仕様: TMSWPの設計文書[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/02-kernel.md)の「Discovery」と「コンポーネント初期化スケジューリング」の節

@@ -10,8 +10,8 @@ use TMSWP\Core\Kernel\Kernel;
 use WP_CLI;
 
 /**
- * `wp tmswp migrate [--force] [--dry-run]`。起動中の全 Kernel の Migrator について、Model のテーブル定義を適用する
- * (06-model §6)。独自テーブルの定義を適用する唯一の経路である。
+ * `wp tmswp migrate [--force] [--dry-run]`。起動中の全 Kernel の Migrator について、Model のテーブル定義を適用する。
+ * 独自テーブルの定義を適用する唯一の経路である。
  */
 final class MigrateCommand
 {

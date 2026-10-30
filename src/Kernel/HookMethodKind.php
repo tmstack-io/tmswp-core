@@ -7,8 +7,7 @@ namespace TMSWP\Core\Kernel;
 /**
  * フックメソッドを宣言した属性の種類(`#[Action]` か `#[Filter]` か)。
  *
- * Filter は失敗時に元の値(第1引数)を返すため、引数を宣言しないメソッドでも WordPress から第1引数を受け取る
- * (02-kernel.md §5)。
+ * Filter は失敗時に元の値(第1引数)を返すため、引数を宣言しないメソッドでも WordPress から第1引数を受け取る。
  */
 enum HookMethodKind: string
 {

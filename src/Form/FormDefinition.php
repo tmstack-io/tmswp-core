@@ -63,7 +63,7 @@ final class FormDefinition
     }
 
     /**
-     * パスワードの項目。確認画面のあるフォームには置けない(§add())。
+     * パスワードの項目。確認画面のあるフォームには置けない(add()・confirm()が例外にする)。
      *
      * @param list<RuleInterface> $rules
      */

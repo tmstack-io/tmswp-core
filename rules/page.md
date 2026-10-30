@@ -166,4 +166,4 @@ use App\Post\NewsPost;
 
 - テンプレートパーツに値を渡す: rules/view.md
 - フォームのページの前処理(PRG): rules/form.md
-- テンプレートの前処理の方式の仕様: TMSWPの設計文書 docs/07-support.md
+- テンプレートの前処理の方式の仕様: TMSWPの設計文書[docs/07-support.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/07-support.md)

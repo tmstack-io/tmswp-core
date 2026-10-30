@@ -11,7 +11,7 @@ use TMSWP\Core\Kernel\Kernel;
 
 /**
  * 1テーブル=1クラスの静的ファサード。サブクラスは table() でスキーマを宣言し、行は stdClass か
- * rowClass() / QueryBuilder::as() で指定した別の DTO クラスで受け取る(docs/06 §3)。
+ * rowClass() / QueryBuilder::as() で指定した別の DTO クラスで受け取る。
  */
 abstract class Model
 {

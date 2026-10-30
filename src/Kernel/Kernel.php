@@ -33,11 +33,12 @@ final class Kernel
 {
     /**
      * この tmswp/core の版。boot 時に、読み込まれたすべての vendor の installed.php にある tmswp/core の版と照合する
-     * (InstalledVersionCheck)。リリースのたびに、タグの版(先頭の v を除く)に合わせて更新する。
+     * (InstalledVersionCheck)。版の最初のタスクで、その版(タグの版から先頭のvを除いたもの)に手で上げる。リリースの道具は
+     * 書き換えず、リリースの前の検査がタグの版との一致を確かめる。
      */
-    public const string VERSION = '0.9.0';
+    public const string VERSION = '0.9.1';
 
-    /** 対応する WordPress の下限の版(D-09) */
+    /** 対応する WordPress の下限の版 */
     private const string MIN_WORDPRESS_VERSION = '7.0';
 
     /** @var array<string, self> */
@@ -70,7 +71,7 @@ final class Kernel
     private array $blocks = [];
 
     /**
-     * キャッチアップ(§3.3)でこれから実行するグループ((最初に発火した順, priority)の昇順)。bootの中で、フックの登録
+     * キャッチアップ(catchUp())でこれから実行するグループ((最初に発火した順, priority)の昇順)。bootの中で、フックの登録
      * (scheduleAll())の後からキャッチアップの終わりまでは配列で、それ以外はnull。defer()が、発火済みのフックへの
      * 予約をこの中に入れる(拡張のregister()・boot時の初期化・キャッチアップ中の初期化からの予約)。
      *
@@ -110,7 +111,7 @@ final class Kernel
     }
 
     /**
-     * Kernel を起動してレジストリに登録する(§3)。
+     * Kernel を起動してレジストリに登録する。
      *
      * boot の途中(拡張の register()・logChannels・キャッチアップで動く初期化)から別の Kernel を boot することは
      * できない。テーマは functions.php、プラグインはプラグインのファイルで、それぞれ独立に boot する。
@@ -313,13 +314,13 @@ final class Kernel
     }
 
     /**
-     * コールバックを、フック $hook の priority $priority の時点で引数なしで実行するよう予約する(§3.3)。
+     * コールバックを、フック $hook の priority $priority の時点で引数なしで実行するよう予約する。
      *
      * 通常はadd_action()で登録する。bootの中(フックの登録の後からキャッチアップの終わりまで。拡張のregister()、
      * boot時の初期化、キャッチアップ中の初期化)で発火済みのフックへ予約した場合は、add_action()では二度と実行されない
      * ため、キャッチアップの列の(最初に発火した順, priority)の位置(同じ位置のグループの後)に入れて、bootの最後の
      * キャッチアップの中で実行する。コンポーネントの初期化が、同じKernelの後のpriorityの初期化を
-     * 待って行う処理(builtinのタクソノミーの紐付けの再試行。03-entities §9.2)に使う。拡張(ExtensionInterface)の
+     * 待って行う処理(builtinのタクソノミーの紐付けの再試行)に使う。拡張(ExtensionInterface)の
      * register()も、本番の遅延bootでも確実に動かしたいフックの処理を、add_action()ではなくこれで予約してよい。
      *
      * @param Closure(): void $callback
@@ -419,11 +420,11 @@ final class Kernel
 
     /**
      * コンポーネントの初期化・MetaSchemaのWordPressへの登録・独自ブロックの登録・ブロックカテゴリのフィルタ・
-     * `#[Action]` / `#[Filter]`のメソッドを、WordPressのフックに登録する(§7)。
+     * `#[Action]` / `#[Filter]`のメソッドを、WordPressのフックに登録する。
      *
      * 遅延 boot の検査(発火済みのフックがあるか)は、どのフックを登録するよりも先に行う。debug では何も登録・
      * 実行しないまま例外を投げる。本番では発火済みのフックのグループを返し、boot() が拡張とレジストリへの登録の後で
-     * catchUp() に渡す(キャッチアップ。§3.3)。
+     * catchUp() に渡す(キャッチアップ)。
      *
      * @throws KernelException debug の遅延 boot の場合
      *
@@ -494,9 +495,9 @@ final class Kernel
 
     /**
      * BootInitializerInterface を実装する Initializer の boot 時の初期化(エンティティのメタスキーマの登録)を、
-     * components の順(FQCN 昇順)に実行する(§7)。それ以外の Initializer は、ここでは Container から取り出さない。
+     * components の順(FQCN 昇順)に実行する。それ以外の Initializer は、ここでは Container から取り出さない。
      *
-     * 失敗は設定の誤り(00-overview.md §5.6)なので、debug に関係なく例外をそのまま投げる。
+     * 失敗は設定の誤りなので、debug に関係なく例外をそのまま投げる。
      */
     private function initializeAtBoot(): void
     {
@@ -510,7 +511,7 @@ final class Kernel
     }
 
     /**
-     * キャッチアップの列を、scheduleAll()が返した発火済みのグループで用意する(§3.3)。この後catchUp()までの間に
+     * キャッチアップの列を、scheduleAll()が返した発火済みのグループで用意する。この後catchUp()までの間に
      * defer()で発火済みのフックへ予約したもの(拡張のregister()・boot時の初期化から)も、この列に入る。
      *
      * @param list<array{hook: string, priority: int, runner: Closure(): void}> $missed scheduleAll() が返したグループ
@@ -527,7 +528,7 @@ final class Kernel
     }
 
     /**
-     * 発火済みのフックの処理をその場で実行して縮退動作させる(キャッチアップ。§3.3)。列はprepareCatchUp()が用意した
+     * 発火済みのフックの処理をその場で実行して縮退動作させる(キャッチアップ)。列はprepareCatchUp()が用意した
      * 本番の遅延bootの発火済みのグループと、defer()で発火済みのフックへ予約したもの。
      */
     private function catchUp(): void
@@ -632,11 +633,11 @@ final class Kernel
      * Filter は引数を宣言しないメソッドでも第1引数を受け取って登録する(HookMethodKind::registeredArgs())ため、
      * メソッドには宣言した引数の数に切り詰めて渡す。
      *
-     * 失敗はエラー方針(00-overview.md §5.6)で隔離する。debug では例外をそのまま投げ、本番ではこの Kernel のログに
-     * error で記録してこのメソッドだけをスキップし、第1引数をそのまま返す(filter の値を変えない。action の戻り値は使われない)。
+     * 本番では、失敗をこのメソッドの中で隔離する。この Kernel のログに error で記録してこのメソッドだけをスキップし、
+     * 第1引数をそのまま返す(filter の値を変えない。action の戻り値は使われない)。debug では例外をそのまま投げる。
      * ログの文脈には、例外のクラス名と投げられた場所(previous はクラス名)だけを入れ、例外のオブジェクト・メッセージ・
      * トレースは入れない。フックのメソッドはアプリのコードで、メッセージやトレースの引数に利用者の入力値や秘密が
-     * 入りうるため(本番のログに残さない。Form の §ログ と同じ)。開発者は debug で元の例外を見られる。
+     * 入りうるため(本番のログに残さない)。開発者は debug で元の例外を見られる。
      *
      * @param array<int|string, mixed> $args WordPress から受け取った引数
      */
@@ -676,7 +677,7 @@ final class Kernel
 
     /**
      * コンポーネント1件を初期化する。初期化は投稿タイプ・タクソノミー・オプション等の登録そのもので、
-     * そこで起きる失敗は設定の誤り(00-overview.md §5.6)なので、debug に関係なく例外をそのまま投げる。
+     * そこで起きる失敗は設定の誤りなので、debug に関係なく例外をそのまま投げる。
      *
      * @throws DiscoveryException initializer が ComponentInitializerInterface を実装していない場合
      */
@@ -692,7 +693,7 @@ final class Kernel
     }
 
     /**
-     * 有効化・無効化のフックを登録する(§3.4)。
+     * 有効化・無効化のフックを登録する。
      *
      * どちらも `rewrite_rules` のオプションを消すだけで、その場では作り直さない。WordPress は `rewrite_rules` が
      * 空なら次にルールが必要になったときに作り直し、`wp_loaded` より前なら保存を `wp_loaded` まで遅らせる

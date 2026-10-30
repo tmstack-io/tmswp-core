@@ -134,4 +134,4 @@ final class LatestNewsShortcodeHook extends Hook
 
 - テンプレートで使う値をDTOにして渡す: rules/page.md
 - テンプレートの部品をブロックエディタで使えるようにする: rules/blocks.md
-- `Template`・`TemplateLocator`の仕様: TMSWPの設計文書 docs/07-support.md
+- `Template`・`TemplateLocator`の仕様: TMSWPの設計文書[docs/07-support.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/07-support.md)

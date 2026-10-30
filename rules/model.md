@@ -8,7 +8,7 @@
 1. `app/Model/<Name>Model.php`を作る。`#[AsModel]`を付けた`final class`にし、`Model`を継承する。
 2. `table()`でスキーマを宣言する(下の「テーブル定義」)。
 3. 行をDTOで受け取るなら、`rowClass()`を上書きして`@return class-string<Row>`を宣言する。上書きしなければ行は`stdClass`。
-4. `wp tmswp migrate`を実行してテーブルを作る。デプロイの手順にも入れる(下の「マイグレーション」)。
+4. `wp tmswp migrate`を実行してテーブルを作る。本番では、ファイルを上げた後に実行する(下の「本番での実行」)。
 5. `composer qa`を通す。
 
 ## 完全な実装例
@@ -226,15 +226,14 @@ wp tmswp migrate             # 食い違うテーブルだけにdbDeltaを実行
 wp tmswp migrate --force     # 定義が同じテーブルにもdbDeltaを実行する
 ```
 
+- 日本語のサイトでは、出力は訳される(`changed`は`変更あり`、`up-to-date`は`最新`、`Migrated: …`は`適用しました: …`、`Skipped: … (up to date)`は`スキップしました: …(最新)`、`No models registered.`は`登録されたModelがありません。`)。
 - `--force`と`--dry-run`は値を取らず、併用できない(エラーで止まる)。
 - Modelが1つも無ければ`No models registered.`の警告で終わる。
 - wp-envの開発用サイトでは`node node_modules/@wordpress/env/bin/wp-env run cli wp tmswp migrate`で実行する。
 
-### デプロイの手順
+### 本番での実行
 
-1. テーマ・プラグインのファイルをすべてアップロードする。
-2. `wp tmswp migrate --dry-run`で、変わるテーブルを確かめる。
-3. `wp tmswp migrate`を実行する。失敗したら(終了コードが0でない)、下の「失敗したとき」に従って直し、もう一度実行する。
+本番では、テーマ・プラグインのファイルをすべて上げた後に、`wp tmswp migrate --dry-run`で変わるテーブルを確かめてから`wp tmswp migrate`を実行する。保守モード・上げるファイル・実行の順序を含む手順の全体は、rules/deploy.mdにある。失敗したら(終了コードが0でない)、下の「失敗したとき」に従って直し、もう一度実行する。
 
 ### 管理画面の通知
 
@@ -556,12 +555,13 @@ final class CatalogItemModelTest extends UnitTestCase
 ## 確認方法
 
 1. `composer qa`が通ること。
-2. `wp tmswp migrate --dry-run`が対象のテーブルを`changed`と出し、`wp tmswp migrate`が成功し、もう一度の`--dry-run`で`up-to-date`と出ること。
+2. `wp tmswp migrate --dry-run`が対象のテーブルを`changed`(日本語のサイトでは`変更あり`)と出し、`wp tmswp migrate`が成功し、もう一度の`--dry-run`で`up-to-date`(日本語のサイトでは`最新`)と出ること。
 3. `insert()`した行を`find()`で読めること。
 
 ## 発展
 
 - 行の有無で404にするフック: rules/hooks.md
 - テーブルの値をテンプレートで使う前処理: rules/page.md
+- 本番へのデプロイの手順: rules/deploy.md
 - テストの書き方の全体(PHPUnitの設定・Brain Monkey): vendor/tmswp/testing/rules/testing.md
-- Model・QueryBuilder・Migratorの仕様: TMSWPの設計文書 docs/06-model.md
+- Model・QueryBuilder・Migratorの仕様: TMSWPの設計文書[docs/06-model.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/06-model.md)

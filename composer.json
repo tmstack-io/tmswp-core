@@ -11,7 +11,7 @@
   "require-dev": {
     "mikey179/vfsstream": "^1.6.12",
     "phpstan/phpstan": "^2.1",
-    "tmswp/testing": "^0.9"
+    "tmswp/testing": "^0.9.1"
   },
   "suggest": {
     "ext-intl": "Required by TMSWP\\Core\\Form\\Rule\\Url to validate internationalized domain names",

@@ -330,4 +330,4 @@ final class ContactMailer
 
 - フォームの定義・確認画面・完了処理: rules/form.md
 - メールの送信元を変えるフィルタ(`wp_mail_from`)を置く場所: rules/hooks.md
-- ログのチャネルの設定(`logChannels`): TMSWPの設計文書 docs/07-support.md
+- ログのチャネルの設定(`logChannels`): TMSWPの設計文書[docs/07-support.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/07-support.md)

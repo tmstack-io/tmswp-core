@@ -295,7 +295,7 @@ $note = ItemFields::of(get_queried_object_id())->value('備考');
 1. ACFの管理画面でフィールドグループを保存したら、`composer acf:sync`を実行する。
 2. `acf-json/`の変更と`app/Acf/`の変更(追加・変更・削除)を、同じコミットに入れる。
 3. CIで`composer acf:check -- --strict`を実行し、失敗したPRをマージしない。
-4. 生成物をデプロイに含める。`AcfManifest`クラスが無いと、WordPressの実行時(`init`)に`AcfBridgeRuntimeException`になる。
+4. 生成物(`app/Acf/`)と`acf-json/`を本番へ上げる(上げるものはrules/deploy.md)。`AcfManifest`クラスが無いと、WordPressの実行時(`init`)に`AcfBridgeRuntimeException`になる。
 
 `check`は、メモリ上で生成した内容と`app/Acf/`のファイルを比べる。WordPressとデータベースは要らない。
 
@@ -345,3 +345,4 @@ GitHub Actionsのステップ:
 - `MetaBag`と`#[MetaSchema]`の規則(キーの渡し方・書き込みの戻り値、ACFのフィールドグループで管理するキー): rules/meta.md
 - オプショングループとsettings-page: rules/options.md
 - 投稿タイプ・タクソノミーをPHPで宣言する: rules/post-type.md・rules/taxonomy.md
+- 本番へのデプロイの手順: rules/deploy.md

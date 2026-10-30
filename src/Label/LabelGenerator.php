@@ -7,7 +7,7 @@ namespace TMSWP\Core\Label;
 /**
  * register_post_type / register_taxonomy の labels 引数を、FW 内蔵のテンプレートから組み立てる。
  *
- * テンプレートの `%1$s` は単数形、`%2$s` は複数形に `sprintf` で展開する。gettext は通さない(docs/03 §2.2)。
+ * テンプレートの `%1$s` は単数形、`%2$s` は複数形に `sprintf` で展開する。gettext は通さない。
  * キーの集合と、階層の有無で null になるキーは、WordPress コアの get_post_type_labels() / get_taxonomy_labels()
  * (`WP_Post_Type::get_default_labels()`・`WP_Taxonomy::get_default_labels()` と `_get_custom_object_labels()`)に合わせる。
  * En の文言はコアの既定の英語ラベルのオブジェクト名の部分にラベルをそのまま入れたもので、大文字・小文字は変えず、

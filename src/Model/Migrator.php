@@ -13,7 +13,7 @@ use TMSWP\Core\Meta\WpDatabaseGuard;
 use TMSWP\Core\Option\WpOptionStorage;
 
 /**
- * 登録された Model のテーブル定義を dbDelta で適用する(06-model §5)。適用は `wp tmswp migrate`(MigrateCommand)
+ * 登録された Model のテーブル定義を dbDelta で適用する。適用は `wp tmswp migrate`(MigrateCommand)
  * だけが行い、起動時・admin_init・ajax・cron では行わない(FTP のアップロード途中の状態でテーブルを変えないため)。
  * 管理画面では、定義のハッシュが保存済みのハッシュと食い違うテーブルを、権限のある管理者に通知するだけにする。
  */
@@ -167,8 +167,8 @@ final class Migrator
      * 定義のハッシュが保存済みのハッシュと食い違うテーブルを、権限のある管理者に知らせる。テーブルは変えない。
      *
      * admin_notices は管理画面の表示でだけ発火する(ajax・cron・REST では発火しない)。確かめるのは、通知を見せる
-     * 権限のあるユーザーのリクエストに限る。確かめる処理の失敗はエラー方針(00-overview.md §5.6)で隔離する。debug では
-     * 例外をそのまま投げ、本番では $kernel のログに error で記録して通知をやめる。
+     * 権限のあるユーザーのリクエストに限る。本番では、確かめる処理の失敗をこのメソッドの中で隔離し、
+     * $kernel のログに error で記録して通知をやめる。debug では例外をそのまま投げる。
      */
     private static function noticeChangedDefinitions(Kernel $kernel): void
     {
@@ -198,7 +198,7 @@ final class Migrator
             return;
         }
 
-        // テーブル名は R1 のベアテーブル名(英小文字・数字・_)のため、HTML として解釈される文字を含まない
+        // テーブル名は Identifier が検証したベアテーブル名(英小文字・数字・_)のため、HTML として解釈される文字を含まない
         wp_admin_notice(
             \sprintf(
                 /* translators: 1: comma-separated database table names, 2: WP-CLI command */
@@ -211,7 +211,8 @@ final class Migrator
     }
 
     /**
-     * ログの文脈に入れる例外の情報。例外のメッセージ・トレース・オブジェクトは入れない(Form の §ログ と同じ)。
+     * ログの文脈に入れる例外の情報。例外のメッセージ・トレース・オブジェクトは入れず、例外のクラス・投げられた場所・
+     * previous のクラスだけを入れる。
      *
      * @return array{exceptionClass: class-string<Throwable>, exceptionAt: string, previousClasses: list<class-string<Throwable>>}
      */
@@ -570,7 +571,7 @@ final class Migrator
      * 保存済みのハッシュのオプションを読む。無ければ false。
      *
      * get_option() は読み込みのクエリが失敗しても「オプションが無い」と同じ false を返すため、データベースのエラーを
-     * WpDatabaseGuard(呼び出しの間のクエリの num_queries と last_error。D-47)で検出し、「ハッシュが無い」とは扱わずに
+     * WpDatabaseGuard(呼び出しの間のクエリの num_queries と last_error)で検出し、「ハッシュが無い」とは扱わずに
      * 例外にする。失敗した読み込みで WP が書いた「オプションが無い」のキャッシュも消す。
      *
      * @throws MigrationException データベースのエラー

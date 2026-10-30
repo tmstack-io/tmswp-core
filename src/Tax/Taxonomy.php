@@ -277,7 +277,7 @@ abstract class Taxonomy
     }
 
     /**
-     * 親の深さの超過(parent の循環等のデータの不整合)を、エラー方針(00-overview.md §5.6)の実行時のデータ取得の
+     * 親の深さの超過(parent の循環等のデータの不整合)を、実行時のデータ取得の
      * 失敗として扱う。debug では例外を投げ、本番ではこのクラスの Kernel のロガーに error で記録して空配列を返す。
      *
      * @throws EntityDataException debug の場合

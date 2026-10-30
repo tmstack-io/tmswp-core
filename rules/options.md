@@ -224,4 +224,4 @@ final class SiteOptionTest extends UnitTestCase
 - フロントに出すコンテンツの設定(ACFのオプションページ): rules/acf.md
 - 投稿・ターム・ユーザーごとの値: rules/meta.md
 - テストの書き方の全体(PHPUnitの設定・Brain Monkey): vendor/tmswp/testing/rules/testing.md
-- オプショングループの仕様: TMSWPの設計文書 docs/04-meta-options.md
+- オプショングループの仕様: TMSWPの設計文書[docs/04-meta-options.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/04-meta-options.md)

@@ -148,4 +148,4 @@ return KernelConfig::plugin(
 ## 発展
 
 - 各拡張の使い方: 上の表の「詳しいレシピ」
-- Kernelごとの拡張の登録の仕様: docs/02-kernel.md §3.10、各拡張の設計: docs/08-extensions.md(settings-page・thumbnail・ja-toolkit)、docs/09-acf-bridge.md
+- Kernelごとの拡張の登録の仕様: TMSWPの設計文書[docs/02-kernel.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/02-kernel.md)の「拡張の登録」の節、各拡張の設計: [docs/08-extensions.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/08-extensions.md)(settings-page・thumbnail・ja-toolkit)、[docs/09-acf-bridge.md](https://github.com/tmstack-io/tmswp/blob/v0.9.1/docs/09-acf-bridge.md)

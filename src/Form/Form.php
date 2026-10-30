@@ -497,8 +497,8 @@ final class Form
     }
 
     /**
-     * 送信の失敗をエラー方針(00-overview.md §5.6)に従って扱う。debug では例外を投げ、本番では Kernel のロガーに
-     * error で記録し、汎用の送信失敗のエラーを付けて入力画面に戻す。
+     * 送信の失敗は、debug では例外を投げ、本番では Kernel のロガーに error で記録し、汎用の送信失敗のエラーを付けて
+     * 入力画面に戻す。
      *
      * @throws Throwable debug のとき
      */
